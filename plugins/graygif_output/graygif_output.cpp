@@ -1,5 +1,5 @@
 /**
- * @file epgif_output.cpp
+ * @file graygif_output.cpp
  */
 
 #include <windows.h>
@@ -15,6 +15,7 @@
 using namespace Gdiplus;
 
 //#pragma comment(lib,"shlwapi.lib")
+#pragma comment(lib, "gdiplus.lib")
 
 #define STRBUF (4096)
 #define STRPAD (16)
@@ -114,7 +115,7 @@ int outputGif(OUTPUT_INFO* oip) {
 
 
 	FILE* pfOut = NULL;
-	fopen_s(&pfOut, oip->savefile, "wb");
+	_wfopen_s(&pfOut, oip->savefile, TEXT("wb"));
 	if (pfOut == NULL) {
 		//outBox(fp, "書き出しファイルのオープンに失敗しました");
 		return -7;
@@ -283,9 +284,10 @@ int outputGif(OUTPUT_INFO* oip) {
 
 	free(palette);
 
-	TCHAR str[STRBUF];
-	wprintf_s(str, STRBUF-STRPAD, "出力しました\n%d コマ", oip->n);
-	MessageBox(NULL, str, oip->savefile, MB_OK);
+	WCHAR str[STRBUF] ;
+	str[0] = 0;
+	wprintf_s(str, STRBUF-STRPAD, TEXT("出力しました\n%d コマ"), oip->n);
+	MessageBoxW(NULL, str, oip->savefile, MB_OK);
 	return 0;
 }
 
@@ -331,7 +333,7 @@ int outputGif(OUTPUT_INFO* oip) {
 //	BOOL oip->func_is_abort( void );
 //							// 中断するか調べます。
 //							// 戻り値	: TRUEなら中断
-//	BOOL oip->func_rest_time_disp( int now,int total );
+//	void oip->func_rest_time_disp( int now,int total );
 //							// 残り時間を表示させます。
 //							// now		: 処理しているフレーム番号
 //							// total	: 処理する総フレーム数
@@ -427,7 +429,9 @@ int func_config_set(void *data, int size) {
 }
 
 LPCWSTR func_get_config_text() {
-	return NULL;
+	WCHAR buf[STRBUF];
+	buf[0] = 0;
+	return buf;
 }
 
 
@@ -435,15 +439,13 @@ LPCWSTR func_get_config_text() {
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
-	NULL, // フラグ
+	0, // フラグ
 	TEXT("グレーAGIF出力"),			//	プラグインの名前
 	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
 	TEXT("グレーAGIF出力 v0.2.1 by ウサギ"),	//	プラグインの情報
-	//NULL,				//	DLL開始時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
-	//NULL,				//	DLL終了時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
-	func_get_config_text,	//	出力設定データを取得する時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
+	func_get_config_text,	//
 };
 
 //---------------------------------------------------------------------
