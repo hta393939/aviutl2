@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "avi_output", "avi_output\av
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "graygif_output", "graygif_output\graygif_output.vcxproj", "{B96E0576-1674-494A-88C4-E0A704977D22}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "apngs_output", "apngs_output\apngs_output.vcxproj", "{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +33,14 @@ Global
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x64.Build.0 = Release|x64
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x86.ActiveCfg = Release|Win32
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x86.Build.0 = Release|Win32
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x64.ActiveCfg = Debug|x64
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x64.Build.0 = Debug|x64
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x86.ActiveCfg = Debug|Win32
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x86.Build.0 = Debug|Win32
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x64.ActiveCfg = Release|x64
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x64.Build.0 = Release|x64
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x86.ActiveCfg = Release|Win32
+		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
