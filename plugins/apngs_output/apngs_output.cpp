@@ -123,10 +123,10 @@ bool func_output(OUTPUT_INFO *oip) {
 
 		if (config.isAlpha == 0) {
 			makePng((unsigned char*)pixelp,
-				width, height, path);
+				width, height, p2);
 		} else {
 			makePng7((unsigned char*)pixelp,
-				bufWidth, height, path);
+				bufWidth, height, p2);
 		}
 
 		//oip->func_update_preview();
