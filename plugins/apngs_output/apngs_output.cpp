@@ -3,7 +3,8 @@
  */
 
 #include <windows.h>
-#include <stdio.h>
+//#include <stdio.h>
+#include <strsafe.h>
 #include "../../aviutl2_sdk/output2.h"
 #include "apngs_output.h"
 
@@ -97,7 +98,8 @@ bool func_output(OUTPUT_INFO *oip) {
 	int width = (config.isAlpha == 0) ? oip->w : oip->w / 2;
 
 // ファイル名
-	lstrcpy(path, oip->savefile);
+	//lstrcpy(path, oip->savefile);
+	StringCchCopy(path, 800, oip->savefile);
 	p2 = p3 = nullptr;
 	for (p=path;*p;++p) {
 		if (*p == '\\') { p2 = p+1; }
@@ -105,21 +107,24 @@ bool func_output(OUTPUT_INFO *oip) {
 	}
 	if (p2 == NULL) p2 = path;
 	if (p3 == NULL) p3 = p;
-	lstrcpy(ext,p3);
+	//lstrcpy(ext,p3);
+	StringCchCopy(ext, 800, p3);
 	*p3 = 0;
-	lstrcpy(name,p2);
-
+	//lstrcpy(name,p2);
+	StringCchCopy(name, 800, p2);
 
 	for(i = 0; i < frames; ++i) {
+		oip->func_rest_time_disp(i, frames);
 		if(oip->func_is_abort()) {
 			break;
 		}
-		oip->func_rest_time_disp(i, frames);
 
 		pixelp = oip->func_get_video(i, 0);
 
-		wprintf_s(buf,1000,config.name,i);
-		wprintf_s(p2,800, L"%s%s%s",name,buf,ext);
+		StringCchPrintf(buf, 1000, config.name, i);
+		StringCchPrintf(p2, 800, L"%s%s%s", name, buf, ext);
+		//wprintf_s(buf,1000,config.name,i);
+		//wprintf_s(p2,800, L"%s%s%s",name,buf,ext);
 
 		if (config.isAlpha == 0) {
 			makePng((unsigned char*)pixelp,
@@ -199,7 +204,7 @@ LPCWSTR func_get_config_text() {
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
-	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO | OUTPUT_PLUGIN_TABLE::FLAG_AUDIO, // フラグ
+	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	L"連番PNG出力",			//	プラグインの名前
 	L"PNG File (*.png)\0*.png\0AllFile (*.*)\0*.*\0",		//	出力ファイルのフィルタ
 	L"連番PNG出力 v0.2.1 by ウサギ",	//	プラグインの情報

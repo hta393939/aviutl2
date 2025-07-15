@@ -5,11 +5,12 @@
 #include <windows.h>
 #include <stdio.h>
 
-//#include "output.h"
 #include "../../aviutl2_sdk/output2.h"
 #include "graygif_output.h"
 
 //#include <Shlwapi.h>
+
+#include <strsafe.h>
 
 #include <gdiplus.h>
 using namespace Gdiplus;
@@ -18,7 +19,6 @@ using namespace Gdiplus;
 #pragma comment(lib, "gdiplus.lib")
 
 #define STRBUF (4096)
-#define STRPAD (16)
 
 
 HGLOBAL makeGif(unsigned char* pSrc,
@@ -55,11 +55,6 @@ BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 	OutputDebugString(TEXT("DllMain graygif_output"));
 	return TRUE;
 }
-
-
-
-
-
 
 
 //---------------------------------------------------------------------
@@ -112,8 +107,14 @@ int outputGif(OUTPUT_INFO* oip) {
 
 	Gdiplus::ColorPalette* palette = (Gdiplus::ColorPalette*)malloc(sizeof(Gdiplus::ColorPalette) + 256 * 4);
 	makePalette(palette);
-
-
+/*
+	auto handle = CreateFile(oip->savefile,
+		GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL,
+		CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (handle == INVALID_HANDLE_VALUE) {
+		return -7;
+	}
+	*/
 	FILE* pfOut = NULL;
 	_wfopen_s(&pfOut, oip->savefile, TEXT("wb"));
 	if (pfOut == NULL) {
@@ -158,10 +159,10 @@ int outputGif(OUTPUT_INFO* oip) {
 	int frames = oip->n;
 
 	for (int i = 0; i < frames; ++i) {
+		oip->func_rest_time_disp(i, frames);
 		if (oip->func_is_abort()) {
 			break;
 		}
-		oip->func_rest_time_disp(i, frames);
 
 		unsigned char* ptop = (unsigned char*)oip->func_get_video(i, 0);
 
@@ -284,10 +285,11 @@ int outputGif(OUTPUT_INFO* oip) {
 
 	free(palette);
 
-	WCHAR str[STRBUF] ;
-	str[0] = 0;
-	wprintf_s(str, STRBUF-STRPAD, TEXT("出力しました\n%d コマ"), oip->n);
-	MessageBoxW(NULL, str, oip->savefile, MB_OK);
+	//WCHAR str[STRBUF] ;
+	//StringCbPrintf(str, STRBUF, TEXT("出力しました\n%d コマ"), oip->n);
+	//MessageBoxW(NULL, str, oip->savefile, MB_OK);
+
+	//CloseHandle(handle);
 	return 0;
 }
 
@@ -430,7 +432,7 @@ int func_config_set(void *data, int size) {
 
 LPCWSTR func_get_config_text() {
 	WCHAR buf[STRBUF];
-	buf[0] = 0;
+	StringCchPrintf(buf, STRBUF, TEXT("isAlpha,%d,repeat,%d"), config.isAlpha, config.repeat);
 	return buf;
 }
 
@@ -439,7 +441,7 @@ LPCWSTR func_get_config_text() {
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
-	0, // フラグ
+	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	TEXT("グレーAGIF出力"),			//	プラグインの名前
 	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
 	TEXT("グレーAGIF出力 v0.2.1 by ウサギ"),	//	プラグインの情報
