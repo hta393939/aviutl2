@@ -13,10 +13,10 @@ typedef unsigned char u8;
 using namespace Gdiplus;
 
 /**
- * MSDN‚ÌHelper Function
+ * MSDNã®Helper Function
  *
- * @param[in] format L"image/gif" ‚È‚Ç‚ğw’è‚·‚éB
- * @param[out] pClsid ‚±‚±‚Éo—Í‚³‚ê‚éB
+ * @param[in] format L"image/gif" ãªã©ã‚’æŒ‡å®šã™ã‚‹ã€‚
+ * @param[out] pClsid ã“ã“ã«å‡ºåŠ›ã•ã‚Œã‚‹ã€‚
  */
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
 	 UINT  num = 0;
@@ -41,10 +41,10 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
 }
 
 /**
- * ƒpƒŒƒbƒg‚É‚¨‚¯‚éF‚ğŒˆ’è‚·‚éB
+ * ãƒ‘ãƒ¬ãƒƒãƒˆã«ãŠã‘ã‚‹è‰²ã‚’æ±ºå®šã™ã‚‹ã€‚
  *
- * @param[in] p BGRAF‚Ìæ“ª‚Ìƒ|ƒCƒ“ƒ^B’A‚µBGR 3ƒoƒCƒg‚µ‚©g‚í‚È‚¢B
- * @return ƒpƒŒƒbƒgƒCƒ“ƒfƒbƒNƒX
+ * @param[in] p BGRAè‰²ã®å…ˆé ­ã®ãƒã‚¤ãƒ³ã‚¿ã€‚ä½†ã—BGR 3ãƒã‚¤ãƒˆã—ã‹ä½¿ã‚ãªã„ã€‚
+ * @return ãƒ‘ãƒ¬ãƒƒãƒˆã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
  */
 int pickColor(unsigned char* p) {
 	int r,g,b;
@@ -67,7 +67,7 @@ typedef struct Vector3_ {
 } Vector3;
 
 /**
- * ƒƒ‚ƒŠã‚É GIF ƒtƒ@ƒCƒ‹‚ğì‚éB
+ * ãƒ¡ãƒ¢ãƒªä¸Šã« GIF ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä½œã‚‹ã€‚
  */
 HGLOBAL makeGif(unsigned char* pSrc,
 			int imgWidth,
@@ -89,7 +89,7 @@ HGLOBAL makeGif(unsigned char* pSrc,
 
 	retVal = 0;
 	do {
-// GDI+‚ğg—p
+// GDI+ã‚’ä½¿ç”¨
 		GdiplusStartupInput gdiplusStartupInput;
 		ULONG_PTR gdiplusToken;
 		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
@@ -100,14 +100,14 @@ HGLOBAL makeGif(unsigned char* pSrc,
 		width = imgWidth;
 		height = imgHeight;
 
-// o—Í‰æ‘œ—pƒƒ‚ƒŠ
+// å‡ºåŠ›ç”»åƒç”¨ãƒ¡ãƒ¢ãƒª
 		hImg = GlobalAlloc(GPTR, width * height * 4);
 		if (hImg == NULL) {
 			retVal = -8;
 			return NULL;
 		}
 
-// ˆ—
+// å‡¦ç†
 		int srcPitch = (width * 3 + 3) / 4 * 4;
 		int dstPitch = (width + 3) / 4 * 4;
 		unsigned char* pDst = (unsigned char*)hImg;
@@ -122,7 +122,7 @@ HGLOBAL makeGif(unsigned char* pSrc,
 			}
 		}
 
-// o—Í—p
+// å‡ºåŠ›ç”¨
 		Bitmap* image = new Bitmap(width,
 			height,
 			dstPitch,
@@ -137,14 +137,14 @@ HGLOBAL makeGif(unsigned char* pSrc,
 
 			stat = image->SetPalette((ColorPalette*)palette);
 
-// •Û‘¶•û–@‚ğw’è‚·‚é
+// ä¿å­˜æ–¹æ³•ã‚’æŒ‡å®šã™ã‚‹
 			result = GetEncoderClsid(L"image/gif", &encoderClsid);
 			if (result < 0) {
 				retVal = -11;
 				return NULL;
 			}
 
-// ƒƒ‚ƒŠã
+// ãƒ¡ãƒ¢ãƒªä¸Š
 			hMem = GlobalAlloc(GMEM_MOVEABLE, 0);
 			if (hMem == NULL) {
 				retVal = -12;
@@ -152,13 +152,13 @@ HGLOBAL makeGif(unsigned char* pSrc,
 			}
 			LPSTREAM stream;
 			HRESULT hr = CreateStreamOnHGlobal(hMem, TRUE, &stream);
-// hMem ‚ª©“®‚ÅÁ‚¦‚é
+// hMem ãŒè‡ªå‹•ã§æ¶ˆãˆã‚‹
 			if (FAILED(hr)) {
 				retVal = -13;
 				return NULL;
 			}
 
-// •Û‘¶‚·‚é
+// ä¿å­˜ã™ã‚‹
 			stat = image->Save(stream, &encoderClsid);
 			if (stat != Ok) {
 				retVal = -14;
@@ -208,11 +208,11 @@ HGLOBAL makeGif(unsigned char* pSrc,
 
 
 /**
- * ƒƒ‚ƒŠã‚ÉGIFƒtƒ@ƒCƒ‹‚ğì‚éB
- * @param[inptr] pSrc •ÏŠ·Œ³BGR‚Ìæ“ª‚Ìƒ|ƒCƒ“ƒ^ˆÊ’u
- * @param[in] bufWidth ¶‰E—¼•û‚ğ‡Z‚µ‚½•
- * @param[in] imgHeight ‰æ‘œ‚‚³
- * @param[out] pByte ƒoƒCƒg”‚ğ‘‚«‚Şæ
+ * ãƒ¡ãƒ¢ãƒªä¸Šã«GIFãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä½œã‚‹ã€‚
+ * @param[inptr] pSrc å¤‰æ›å…ƒBGRã®å…ˆé ­ã®ãƒã‚¤ãƒ³ã‚¿ä½ç½®
+ * @param[in] bufWidth å·¦å³ä¸¡æ–¹ã‚’åˆç®—ã—ãŸå¹…
+ * @param[in] imgHeight ç”»åƒé«˜ã•
+ * @param[out] pByte ãƒã‚¤ãƒˆæ•°ã‚’æ›¸ãè¾¼ã‚€å…ˆ
  */
 HGLOBAL makeGif7(unsigned char* pSrc,
 			int bufWidth,
@@ -234,7 +234,7 @@ HGLOBAL makeGif7(unsigned char* pSrc,
 
 	retVal = 0;
 	do {
-// GDI+‚ğg—p
+// GDI+ã‚’ä½¿ç”¨
 
 		GdiplusStartupInput gdiplusStartupInput;
 		ULONG_PTR gdiplusToken;
@@ -246,14 +246,14 @@ HGLOBAL makeGif7(unsigned char* pSrc,
 		width = bufWidth / 2;
 		height = imgHeight;
 
-// o—Í‰æ‘œ—pƒƒ‚ƒŠ 4”{Šm•Û‚µ‚Ä‚¨‚¯‚Î‚¾‚¢‚½‚¢‘«‚è‚é
+// å‡ºåŠ›ç”»åƒç”¨ãƒ¡ãƒ¢ãƒª 4å€ç¢ºä¿ã—ã¦ãŠã‘ã°ã ã„ãŸã„è¶³ã‚Šã‚‹
 		hImg = GlobalAlloc(GPTR, width * height * 4);
 		if (hImg == NULL) {
 			retVal = -8;
 			return NULL;
 		}
 
-// ˆ—
+// å‡¦ç†
 		int srcPitch = (bufWidth * 3 + 3) / 4 * 4;
 		int dstPitch = (width + 3) / 4 * 4;
 		unsigned char* pDst = (unsigned char*)hImg;
@@ -272,7 +272,7 @@ HGLOBAL makeGif7(unsigned char* pSrc,
 			}
 		}
 
-// o—Í—p
+// å‡ºåŠ›ç”¨
 		Bitmap* image = new Bitmap(width,
 			height,
 			dstPitch,
@@ -287,14 +287,14 @@ HGLOBAL makeGif7(unsigned char* pSrc,
 
 			stat = image->SetPalette((ColorPalette*)palette);
 
-// •Û‘¶•û–@‚ğw’è‚·‚é
+// ä¿å­˜æ–¹æ³•ã‚’æŒ‡å®šã™ã‚‹
 			result = GetEncoderClsid(L"image/gif", &encoderClsid);
 			if (result < 0) {
 				retVal = -11;
 				return NULL;
 			}
 
-// ƒƒ‚ƒŠã
+// ãƒ¡ãƒ¢ãƒªä¸Š
 			hMem = GlobalAlloc(GMEM_MOVEABLE, 0);
 			if (hMem == NULL) {
 				retVal = -12;
@@ -302,13 +302,13 @@ HGLOBAL makeGif7(unsigned char* pSrc,
 			}
 			LPSTREAM stream;
 			HRESULT hr = CreateStreamOnHGlobal(hMem, TRUE, &stream);
-// hMem ‚ª©“®‚ÅÁ‚¦‚é
+// hMem ãŒè‡ªå‹•ã§æ¶ˆãˆã‚‹
 			if (FAILED(hr)) {
 				retVal = -13;
 				return NULL;
 			}
 
-// •Û‘¶‚·‚é
+// ä¿å­˜ã™ã‚‹
 			stat = image->Save(stream, &encoderClsid);
 			if (stat != Ok) {
 				retVal = -14;
