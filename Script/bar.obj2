@@ -7,5 +7,6 @@ else
   local size = 100
   local line = 16
   local round = true
-  obj.load("figure", "四角", col, size, line, round)
+  obj.load("figure", "四角形", col, size, line, round)
+end
 
