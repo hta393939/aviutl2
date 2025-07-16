@@ -1,0 +1,11 @@
+--check@c0:チェック0,0
+
+local col = 0xff0000
+if c0 ~= 0 then
+  obj.load("text", 'テキスト')
+else
+  local size = 100
+  local line = 16
+  local round = true
+  obj.load("figure", "四角", col, size, line, round)
+
