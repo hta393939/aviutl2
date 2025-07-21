@@ -91,6 +91,39 @@ void makePalette(ColorPalette* p) {
 
 }
 
+/// <summary>
+/// 乗算係数を外す
+/// </summary>
+/// <param name="psrc"></param>
+/// <param name="pdst"></param>
+/// <param name="num">個数</param>
+/// <returns></returns>
+///
+/**
+int unmulti(float16* psrc, unsigned char* pdst, int num) {
+	for (int i = 0; i < num; ++i) {
+		int offset = i * 4;
+		float r = psrc[0];
+		float g = psrc[1];
+		float b = psrc[2];
+		float a = psrc[3];
+		if (a > 0.0) {
+			r /= a;
+			g /= a;
+			b /= a;
+		}
+		pdst[0] = r;
+		pdst[1] = g;
+		pdst[2] = b;
+		pdst[3] = a;
+
+		psrc += 4;
+		pdst += 4;
+	}
+	return 1;
+}
+*/
+
 /// <summary>アニメgifファイル出力</summary>
 int outputGif(OUTPUT_INFO* oip) {
 	if (oip == nullptr) {
@@ -158,13 +191,15 @@ int outputGif(OUTPUT_INFO* oip) {
 
 	int frames = oip->n;
 
+	auto fourCC = MAKEFOURCC('H', 'F', '6', '4');
+	//auto fourCC = MAKEFOURCC('P', 'A', '6', '4');
 	for (int i = 0; i < frames; ++i) {
 		oip->func_rest_time_disp(i, frames);
 		if (oip->func_is_abort()) {
 			break;
 		}
 
-		unsigned char* ptop = (unsigned char*)oip->func_get_video(i, 0);
+		unsigned char* ptop = (unsigned char*)oip->func_get_video(i, fourCC);
 
 		unsigned char* target = ptop;
 
@@ -444,7 +479,7 @@ OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	TEXT("グレーAGIF出力"),			//	プラグインの名前
 	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
-	TEXT("グレーAGIF出力 v0.2.1 by ウサギ"),	//	プラグインの情報
+	TEXT("グレーAGIF出力 v0.2.2 by ウサギ"),	//	プラグインの情報
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_get_config_text,	//
