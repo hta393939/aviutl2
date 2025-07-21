@@ -18,7 +18,11 @@ struct OUTPUT_INFO {
 
 	// DIB形式の画像データを取得します
 	// frame	: フレーム番号
-	// format	: 画像フォーマット( 0(BI_RGB) = RGB24bit / 'Y''U''Y''2' = YUY2 )
+	// format	: 画像フォーマット
+	//			  0(BI_RGB) = RGB24bit / 'P''A''6''4' = PA64 / 'H''F''6''4' = HF64 / 'Y''U''Y''2' = YUY2 / 'Y''C''4''8' = YC48
+	// ※PA64はDXGI_FORMAT_R16G16B16A16_UNORM(乗算済みα)です
+	// ※HF64はDXGI_FORMAT_R16G16B16A16_FLOAT(乗算済みα)です
+	// ※YC48は互換対応の旧内部フォーマットです 
 	// 戻り値	: データへのポインタ
 	//			  画像データポインタの内容は次に外部関数を使うかメインに処理を戻すまで有効
 	void* (*func_get_video)(int frame, DWORD format);
@@ -27,7 +31,8 @@ struct OUTPUT_INFO {
 	// start	: 開始サンプル番号
 	// length	: 読み込むサンプル数
 	// readed	: 読み込まれたサンプル数
-	// format	: 音声フォーマット( 1(WAVE_FORMAT_PCM) = PCM16bit / 3(WAVE_FORMAT_IEEE_FLOAT) = PCM(float)32bit )
+	// format	: 音声フォーマット
+	//			  1(WAVE_FORMAT_PCM) = PCM16bit / 3(WAVE_FORMAT_IEEE_FLOAT) = PCM(float)32bit
 	// 戻り値	: データへのポインタ
 	//			  音声データポインタの内容は次に外部関数を使うかメインに処理を戻すまで有効
 	void* (*func_get_audio)(int start, int length, int* readed, DWORD format);

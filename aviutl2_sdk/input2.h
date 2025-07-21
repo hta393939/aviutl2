@@ -4,13 +4,15 @@
 //----------------------------------------------------------------------------------
 
 // 入力ファイル情報構造体
-// 画像フォーマットはRGB24bit,RGBA32bit,YUY2が対応しています
+// 画像フォーマットはRGB24bit,RGBA32bit,PA64,HF64,YUY2,YC48が対応しています
 // 音声フォーマットはPCM16bit,PCM(float)32bitが対応しています
+// ※PA64はDXGI_FORMAT_R16G16B16A16_UNORM(乗算済みα)です
+// ※HF64はDXGI_FORMAT_R16G16B16A16_FLOAT(乗算済みα)です
+// ※YC48は互換対応の旧内部フォーマットです 
 struct INPUT_INFO {
 	int	flag;					// フラグ
 	static constexpr int FLAG_VIDEO = 1; // 画像データあり
 	static constexpr int FLAG_AUDIO = 2; // 音声データあり
-	static constexpr int FLAG_CONCURRENT = 16; // 画像・音声データの同時取得をサポートする ※読み込み関数が同時に呼ばれる
 	int	rate, scale;			// フレームレート、スケール
 	int	n;						// フレーム数
 	BITMAPINFOHEADER* format;	// 画像フォーマットへのポインタ(次に関数が呼ばれるまで内容を有効にしておく)
@@ -28,6 +30,7 @@ struct INPUT_PLUGIN_TABLE {
 	int flag;					// フラグ
 	static constexpr int FLAG_VIDEO = 1; //	画像をサポートする
 	static constexpr int FLAG_AUDIO = 2; //	音声をサポートする
+	static constexpr int FLAG_CONCURRENT = 16; // 画像・音声データの同時取得をサポートする ※画像と音声取得関数が同時に呼ばれる
 	LPCWSTR name;				// プラグインの名前
 	LPCWSTR filefilter;			// 入力ファイルフィルタ
 	LPCWSTR information;		// プラグインの情報
@@ -68,4 +71,8 @@ struct INPUT_PLUGIN_TABLE {
 	// dll_hinst	: インスタンスハンドル
 	// 戻り値		: TRUEなら成功
 	bool (*func_config)(HWND hwnd, HINSTANCE dll_hinst);
+
+	// 拡張用の予約
+	void (*reserve0)();
+	void (*reserve1)();
 };

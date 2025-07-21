@@ -14,7 +14,7 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst);
 LPCWSTR func_get_config_text();
 
 //---------------------------------------------------------------------
-//	入力プラグイン構造体定義
+//	出力プラグイン構造体定義
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO | OUTPUT_PLUGIN_TABLE::FLAG_AUDIO, //	フラグ
