@@ -121,7 +121,7 @@ typedef struct {
 } CONFIG;
 static CONFIG config = {
 	1,
-	1,
+	0,
 };
 
 /**
@@ -425,7 +425,7 @@ bool func_output(OUTPUT_INFO *oip) {
 LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
 	switch(umsg) {
 		case WM_INITDIALOG:
-			SetDlgItemInt(hdlg, IDC_EDIT0, config.repeat,TRUE);
+			SetDlgItemInt(hdlg, IDC_EDIT0, config.repeat, TRUE);
 			if (config.straighten == 0) {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_UNCHECKED);
 			} else {
@@ -438,7 +438,7 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 					EndDialog(hdlg, LOWORD(wparam));
 					break;
 				case IDOK:
-					config.repeat = GetDlgItemInt(hdlg, IDC_EDIT0,NULL,TRUE);
+					config.repeat = GetDlgItemInt(hdlg, IDC_EDIT0, NULL, TRUE);
 					if (IsDlgButtonChecked(hdlg, IDC_CHECK1) == BST_CHECKED) {
 						config.straighten = 1;
 					} else {
@@ -476,8 +476,8 @@ int func_config_get(void *data, int size) {
 	TCHAR buf[STRBUF];
 	GetPrivateProfileString(TEXT(""), TEXT("straighten"), TEXT("1"), buf, STRBUF, TEXT("graygif_output.ini"));
 	config.straighten = 1;
-	GetPrivateProfileString(TEXT(""), TEXT("repeat"), TEXT("1"), buf, STRBUF, TEXT("graygif_output.ini"));
-	config.repeat = 1;
+	GetPrivateProfileString(TEXT(""), TEXT("repeat"), TEXT("0"), buf, STRBUF, TEXT("graygif_output.ini"));
+	config.repeat = 0;
 	return sizeof(config);
 }
 

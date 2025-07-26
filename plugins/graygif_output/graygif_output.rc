@@ -11,7 +11,7 @@ FONT 9, "ＭＳ Ｐゴシック"
  CONTROL "繰り返し回数", -1, "static", SS_LEFT | WS_CHILD | WS_VISIBLE, 8, 8, 76, 8
  CONTROL "(0 を指定すると無限ループ)", -1, "static", SS_LEFT | WS_CHILD | WS_VISIBLE, 8, 20, 112, 8
  CONTROL "", IDC_EDIT0, "edit", ES_LEFT | WS_CHILD | WS_VISIBLE | WS_BORDER | WS_TABSTOP, 68, 32, 52, 16
- CONTROL "右半分を透過情報として扱う", IDC_CHECK1, "Button", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE, 8,56, 112,16
+ CONTROL "事前乗算を元に戻す", IDC_CHECK1, "Button", BS_AUTOCHECKBOX | WS_CHILD | WS_VISIBLE, 8,56, 112,16
 }
 
 

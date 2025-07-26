@@ -89,14 +89,14 @@ HGLOBAL makeGrayGif(float* pSrc,
 		int dstPitch = (width + 3) / 4 * 4;
 		unsigned char* pDst = (unsigned char*)hImg;
 		for (y = 0; y < height; ++y) {
-			auto pAddr = pSrc + (height - 1 - y) * srcPitch;
+			auto pAddr = pSrc + y * srcPitch;
 			pDst = ((unsigned char*)hImg) + y * dstPitch;
 			for (x = 0; x < width; ++x) {
 				int idx = 0;
 				auto alpha = pAddr[3];
 				if (alpha >= 0.5f) {
-					auto luma = pAddr[0] * 0.299f + pAddr[1] * 150 + pAddr[2] * 29;
-					int q = (int)(luma / 255.0);
+					auto luma = pAddr[0] * 0.299f + pAddr[1] * 0.587f + pAddr[2] * 0.114f;
+					int q = (int)(luma * 255.0f + 0.5f);
 					idx = (q > 255) ? 255 : ((q < 1) ? 1 : q);
 				}
 				pDst[x] = idx;
