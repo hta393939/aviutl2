@@ -20,19 +20,73 @@ using namespace Gdiplus;
 
 #define STRBUF (4096)
 
-
-HGLOBAL makeGif(unsigned char* pSrc,
+HGLOBAL makeGrayGif(float* pSrc,
 			int imgWidth,
-			int imgHeight,
-			int* pByte,
-			unsigned char* palette);
-HGLOBAL makeGif7(unsigned char* pSrc,
-			int bufWidth,
 			int imgHeight,
 			int* pByte,
 			unsigned char* palette);
 
 HMODULE gDLL = NULL;
+
+float gk2[32];
+
+void makeTable() {
+	float k = 64.0f; // 2^6
+	for (int i = 0; i < 32; ++i) {
+		gk2[31 - i] = k;
+		k *= 0.5f;
+	}
+	gk2[0] = gk2[1];
+}
+
+float u16tof(unsigned short u16) {
+	if (u16 == 0) {
+		return 0.0f;
+	}
+	int exp = ((u16 >> 10) & 0x1f);
+	int bits = (u16 & 0x3ff); // 10bit
+	if (exp == 0) { // ケチ表現
+		return gk2[0] * (float)bits;
+	}
+	int signBit = (u16 & 0x8000) ? 0x80000000 : 0;
+	if (exp == 31) { // 無限大またはNaN 8bit exp
+		unsigned int buf = 0x7f800000 | signBit | ((bits != 0) ? 1 : 0);
+		float* p = (float*)&buf;
+		return *p;
+	}
+
+	float ret = gk2[exp] * (float)(bits | 0x400);
+	if (signBit) {
+		ret = -ret;
+	}
+	return ret;
+}
+
+/// <summary>
+/// 一度にやらないタイプ
+/// </summary>
+/// <param name="psrc"></param>
+/// <param name="pdst"></param>
+/// <param name="num">rgbaで1個とカウント</param>
+void u16tofloatFrame(unsigned short* psrc,
+	float* pdst, int num, int straighten) {
+	int offset = 0;
+	for (int i = 0; i < num; ++i) {
+		float a = u16tof(psrc[3]);
+		float k = (straighten && a != 0.0) ? 1.0f / a : 1.0f;
+		float r = u16tof(psrc[0]) * k;
+		float g = u16tof(psrc[1]) * k;
+		float b = u16tof(psrc[2]) * k;
+		pdst[0] = r;
+		pdst[1] = g;
+		pdst[2] = b;
+		pdst[3] = a;
+
+		psrc += 4;
+		pdst += 4;
+		offset += 4;
+	}
+}
 
 /**
  * 16LEで書き込む。
@@ -53,6 +107,7 @@ int writeu16(unsigned char* buf, int offset, int v) {
 BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 	gDLL = hinstDLL;
 	OutputDebugString(TEXT("DllMain graygif_output"));
+	makeTable();
 	return TRUE;
 }
 
@@ -61,12 +116,12 @@ BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 //		出力プラグイン内部変数
 //---------------------------------------------------------------------
 typedef struct {
-	int isAlpha; /**< 右をアルファとして使う */
+	int straighten; /**< 右をアルファとして使う */
 	int repeat; /**< リピート */
 } CONFIG;
 static CONFIG config = {
-	0,
-	0
+	1,
+	1,
 };
 
 /**
@@ -90,39 +145,6 @@ void makePalette(ColorPalette* p) {
 	}
 
 }
-
-/// <summary>
-/// 乗算係数を外す
-/// </summary>
-/// <param name="psrc"></param>
-/// <param name="pdst"></param>
-/// <param name="num">個数</param>
-/// <returns></returns>
-///
-/**
-int unmulti(float16* psrc, unsigned char* pdst, int num) {
-	for (int i = 0; i < num; ++i) {
-		int offset = i * 4;
-		float r = psrc[0];
-		float g = psrc[1];
-		float b = psrc[2];
-		float a = psrc[3];
-		if (a > 0.0) {
-			r /= a;
-			g /= a;
-			b /= a;
-		}
-		pdst[0] = r;
-		pdst[1] = g;
-		pdst[2] = b;
-		pdst[3] = a;
-
-		psrc += 4;
-		pdst += 4;
-	}
-	return 1;
-}
-*/
 
 /// <summary>アニメgifファイル出力</summary>
 int outputGif(OUTPUT_INFO* oip) {
@@ -172,13 +194,24 @@ int outputGif(OUTPUT_INFO* oip) {
 		}
 	}
 
+	int straighten = config.straighten;
+	float* fbuffer = nullptr;
+	try {
+		fbuffer = new float[width * height * 4];
+	}
+	catch (...) {
+		fbuffer = nullptr;
+	}
+
 	unsigned char* buffer = nullptr;
 	try {
 		buffer = new unsigned char[width * height * 4];
 	} catch (...) {
 		buffer = nullptr;
 	}
-	if (buffer == nullptr) {
+	if (buffer == nullptr || fbuffer == nullptr) {
+		delete[] fbuffer;
+		delete[] buffer;
 		fclose(pfOut);
 		//outBox(fp, "メモリ不足です");
 		return -8;
@@ -192,28 +225,19 @@ int outputGif(OUTPUT_INFO* oip) {
 	int frames = oip->n;
 
 	auto fourCC = MAKEFOURCC('H', 'F', '6', '4');
-	//auto fourCC = MAKEFOURCC('P', 'A', '6', '4');
 	for (int i = 0; i < frames; ++i) {
 		oip->func_rest_time_disp(i, frames);
 		if (oip->func_is_abort()) {
 			break;
 		}
 
-		unsigned char* ptop = (unsigned char*)oip->func_get_video(i, fourCC);
-
-		unsigned char* target = ptop;
+		auto ptop = (unsigned short*)oip->func_get_video(i, fourCC);
+		u16tofloatFrame(ptop, fbuffer, width * height, straighten);
 
 		HGLOBAL hRet;
-		if (config.isAlpha == 0) {
-			hRet = makeGif(target,
+		hRet = makeGrayGif(fbuffer,
 				width, height, &byteRead,
 				(unsigned char*)palette);
-		}
-		else {
-			hRet = makeGif7(target,
-				width, height, &byteRead,
-				(unsigned char*)palette);
-		}
 
 		unsigned char* buf = (unsigned char*)hRet;
 
@@ -402,7 +426,7 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 	switch(umsg) {
 		case WM_INITDIALOG:
 			SetDlgItemInt(hdlg, IDC_EDIT0, config.repeat,TRUE);
-			if (config.isAlpha == 0) {
+			if (config.straighten == 0) {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_UNCHECKED);
 			} else {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_CHECKED);
@@ -416,9 +440,9 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 				case IDOK:
 					config.repeat = GetDlgItemInt(hdlg, IDC_EDIT0,NULL,TRUE);
 					if (IsDlgButtonChecked(hdlg, IDC_CHECK1) == BST_CHECKED) {
-						config.isAlpha = 1;
+						config.straighten = 1;
 					} else {
-						config.isAlpha = 0;
+						config.straighten = 0;
 					}
 					EndDialog(hdlg, LOWORD(wparam));
 					break;
@@ -441,7 +465,7 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 }
 
 /**
- *
+ * 未使用
  * @param[out] data 
  */
 int func_config_get(void *data, int size) {
@@ -449,11 +473,16 @@ int func_config_get(void *data, int size) {
 		CopyMemory(data, &config, sizeof(config));
 	}
 	OutputDebugString(TEXT("_get"));
+	TCHAR buf[STRBUF];
+	GetPrivateProfileString(TEXT(""), TEXT("straighten"), TEXT("1"), buf, STRBUF, TEXT("graygif_output.ini"));
+	config.straighten = 1;
+	GetPrivateProfileString(TEXT(""), TEXT("repeat"), TEXT("1"), buf, STRBUF, TEXT("graygif_output.ini"));
+	config.repeat = 1;
 	return sizeof(config);
 }
 
 /**
- *
+ * 未使用
  * @param[in] data
  */
 int func_config_set(void *data, int size) {
@@ -462,12 +491,17 @@ int func_config_set(void *data, int size) {
 	}
 	CopyMemory(&config, data, size);
 	OutputDebugString(TEXT("_set"));
+	TCHAR buf[STRBUF];
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), config.straighten);
+	WritePrivateProfileString(TEXT("graygif_output"), TEXT("straighten"), buf, TEXT("graygif_output.ini"));
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), config.repeat);
+	WritePrivateProfileString(TEXT("graygif_output"), TEXT("repeat"), buf, TEXT("graygif_output.ini"));
 	return size;
 }
 
 LPCWSTR func_get_config_text() {
 	WCHAR buf[STRBUF];
-	StringCchPrintf(buf, STRBUF, TEXT("isAlpha,%d,repeat,%d"), config.isAlpha, config.repeat);
+	StringCchPrintf(buf, STRBUF, TEXT("straighten,%d,repeat,%d"), config.straighten, config.repeat);
 	return buf;
 }
 
@@ -479,10 +513,10 @@ OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	TEXT("グレーAGIF出力"),			//	プラグインの名前
 	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
-	TEXT("グレーAGIF出力 v0.2.2 by ウサギ"),	//	プラグインの情報
+	TEXT("グレーAGIF出力 v0.3.1 by ウサギ"),	//	プラグインの情報
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
-	func_get_config_text,	//
+	func_get_config_text,	// 左に表示するテキストを返す
 };
 
 //---------------------------------------------------------------------
