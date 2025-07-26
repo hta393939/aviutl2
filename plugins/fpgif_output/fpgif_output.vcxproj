@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{b96e0576-1674-494a-88c4-e0a704977d22}</ProjectGuid>
+    <ProjectGuid>{68EBB8D5-CC3C-472E-AA3A-79E049269E4E}</ProjectGuid>
     <RootNamespace>graygifoutput</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -148,17 +148,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\aviutl2_sdk\output2.h" />
-    <ClInclude Include="graygif_output.h" />
+    <ClInclude Include="fpgif_output.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="graygif.cpp" />
-    <ClCompile Include="graygif_output.cpp" />
+    <ClCompile Include="fpgif.cpp" />
+    <ClCompile Include="fpgif_output.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="graygif_output.def" />
+    <None Include="fpgif_output.def" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="graygif_output.rc" />
+    <ResourceCompile Include="fpgif_output.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
