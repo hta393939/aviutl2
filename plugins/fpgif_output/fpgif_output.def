@@ -1,0 +1,4 @@
+EXPORTS
+	GetOutputPluginTable @1
+	DllMain PRIVATE
+
