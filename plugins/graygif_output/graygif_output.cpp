@@ -68,9 +68,9 @@ float u16tof(unsigned short u16) {
 /// <param name="psrc"></param>
 /// <param name="pdst"></param>
 /// <param name="num">rgbaで1個とカウント</param>
+/// <param name="straighten">premultiを戻す場合、1</param>
 void u16tofloatFrame(unsigned short* psrc,
 	float* pdst, int num, int straighten) {
-	int offset = 0;
 	for (int i = 0; i < num; ++i) {
 		float a = u16tof(psrc[3]);
 		float k = (straighten && a != 0.0) ? 1.0f / a : 1.0f;
@@ -84,7 +84,6 @@ void u16tofloatFrame(unsigned short* psrc,
 
 		psrc += 4;
 		pdst += 4;
-		offset += 4;
 	}
 }
 
@@ -116,7 +115,7 @@ BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 //		出力プラグイン内部変数
 //---------------------------------------------------------------------
 typedef struct {
-	int straighten; /**< 右をアルファとして使う */
+	int straighten; /**< premulti積成分を解除する */
 	int repeat; /**< リピート */
 } CONFIG;
 static CONFIG config = {
