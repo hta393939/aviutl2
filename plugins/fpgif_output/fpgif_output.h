@@ -1,5 +1,5 @@
 /**
- * @file graygif_output.h
+ * @file fpgif_output.h
  */
 
 #define	IDC_EDIT0 (100)

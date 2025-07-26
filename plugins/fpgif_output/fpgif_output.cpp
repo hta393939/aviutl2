@@ -1,12 +1,12 @@
 /**
- * @file graygif_output.cpp
+ * @file fpgif_output.cpp
  */
 
 #include <windows.h>
 #include <stdio.h>
 
 #include "../../aviutl2_sdk/output2.h"
-#include "graygif_output.h"
+#include "fpgif_output.h"
 
 //#include <Shlwapi.h>
 
@@ -45,11 +45,11 @@ float u16tof(unsigned short u16) {
 	}
 	int exp = ((u16 >> 10) & 0x1f);
 	int bits = (u16 & 0x3ff); // 10bit
-	if (exp == 0) { // ƒPƒ`•\Œ»
+	if (exp == 0) { // ã‚±ãƒè¡¨ç¾
 		return gk2[0] * (float)bits;
 	}
 	int signBit = (u16 & 0x8000) ? 0x80000000 : 0;
-	if (exp == 31) { // –³ŒÀ‘å‚Ü‚½‚ÍNaN 8bit exp
+	if (exp == 31) { // ç„¡é™å¤§ã¾ãŸã¯NaN 8bit exp
 		unsigned int buf = 0x7f800000 | signBit | ((bits != 0) ? 1 : 0);
 		float* p = (float*)&buf;
 		return *p;
@@ -63,12 +63,12 @@ float u16tof(unsigned short u16) {
 }
 
 /// <summary>
-/// ˆê“x‚É‚â‚ç‚È‚¢ƒ^ƒCƒv
+/// ä¸€åº¦ã«ã‚„ã‚‰ãªã„ã‚¿ã‚¤ãƒ—
 /// </summary>
 /// <param name="psrc"></param>
 /// <param name="pdst"></param>
-/// <param name="num">rgba‚Å1ŒÂ‚ÆƒJƒEƒ“ƒg</param>
-/// <param name="straighten">premulti‚ğ–ß‚·ê‡A1</param>
+/// <param name="num">rgbaã§1å€‹ã¨ã‚«ã‚¦ãƒ³ãƒˆ</param>
+/// <param name="straighten">premultiã‚’æˆ»ã™å ´åˆã€1</param>
 void u16tofloatFrame(unsigned short* psrc,
 	float* pdst, int num, int straighten) {
 	for (int i = 0; i < num; ++i) {
@@ -88,11 +88,11 @@ void u16tofloatFrame(unsigned short* psrc,
 }
 
 /**
- * 16LE‚Å‘‚«‚ŞB
+ * 16LEã§æ›¸ãè¾¼ã‚€ã€‚
  *
- * @param[out] buf ‘S‘Ìƒoƒbƒtƒ@
- * @param[in] offset ƒoƒbƒtƒ@‚ÌƒIƒtƒZƒbƒg
- * @param[in] v ‘‚«‚Ş’l
+ * @param[out] buf å…¨ä½“ãƒãƒƒãƒ•ã‚¡
+ * @param[in] offset ãƒãƒƒãƒ•ã‚¡ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+ * @param[in] v æ›¸ãè¾¼ã‚€å€¤
  */
 int writeu16(unsigned char* buf, int offset, int v) {
 	buf[offset + 0] =  v & 0xff;
@@ -101,7 +101,7 @@ int writeu16(unsigned char* buf, int offset, int v) {
 }
 
 
-/// ƒvƒ‰ƒOƒCƒ“‘¤ ///
+/// ãƒ—ãƒ©ã‚°ã‚¤ãƒ³å´ ///
 
 BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 	gDLL = hinstDLL;
@@ -112,11 +112,11 @@ BOOL APIENTRY DllMain(HMODULE hinstDLL,DWORD fdwReason,LPVOID lpvReserved) {
 
 
 //---------------------------------------------------------------------
-//		o—Íƒvƒ‰ƒOƒCƒ““à•”•Ï”
+//		å‡ºåŠ›ãƒ—ãƒ©ã‚°ã‚¤ãƒ³å†…éƒ¨å¤‰æ•°
 //---------------------------------------------------------------------
 typedef struct {
-	int straighten; /**< premultiÏ¬•ª‚ğ‰ğœ‚·‚é */
-	int repeat; /**< ƒŠƒs[ƒg */
+	int straighten; /**< premultiç©æˆåˆ†ã‚’è§£é™¤ã™ã‚‹ */
+	int repeat; /**< ãƒªãƒ”ãƒ¼ãƒˆ */
 } CONFIG;
 static CONFIG config = {
 	1,
@@ -124,9 +124,9 @@ static CONFIG config = {
 };
 
 /**
- * ƒpƒŒƒbƒg‚ğ¶¬‚·‚éB
+ * ãƒ‘ãƒ¬ãƒƒãƒˆã‚’ç”Ÿæˆã™ã‚‹ã€‚
  *
- * @param[out] p ‘‚«o‚µæ
+ * @param[out] p æ›¸ãå‡ºã—å…ˆ
  */
 void makePalette(ColorPalette* p) {
 	int r, g, b;
@@ -145,10 +145,10 @@ void makePalette(ColorPalette* p) {
 
 }
 
-/// <summary>ƒAƒjƒgifƒtƒ@ƒCƒ‹o—Í</summary>
+/// <summary>ã‚¢ãƒ‹ãƒ¡gifãƒ•ã‚¡ã‚¤ãƒ«å‡ºåŠ›</summary>
 int outputGif(OUTPUT_INFO* oip) {
 	if (oip == nullptr) {
-		//outBox(fp, "“à•”ƒGƒ‰[: -1");
+		//outBox(fp, "å†…éƒ¨ã‚¨ãƒ©ãƒ¼: -1");
 		return -1;
 	}
 
@@ -172,7 +172,7 @@ int outputGif(OUTPUT_INFO* oip) {
 	FILE* pfOut = NULL;
 	_wfopen_s(&pfOut, oip->savefile, TEXT("wb"));
 	if (pfOut == NULL) {
-		//outBox(fp, "‘‚«o‚µƒtƒ@ƒCƒ‹‚ÌƒI[ƒvƒ“‚É¸”s‚µ‚Ü‚µ‚½");
+		//outBox(fp, "æ›¸ãå‡ºã—ãƒ•ã‚¡ã‚¤ãƒ«ã®ã‚ªãƒ¼ãƒ—ãƒ³ã«å¤±æ•—ã—ã¾ã—ãŸ");
 		return -7;
 	}
 
@@ -212,7 +212,7 @@ int outputGif(OUTPUT_INFO* oip) {
 		delete[] fbuffer;
 		delete[] buffer;
 		fclose(pfOut);
-		//outBox(fp, "ƒƒ‚ƒŠ•s‘«‚Å‚·");
+		//outBox(fp, "ãƒ¡ãƒ¢ãƒªä¸è¶³ã§ã™");
 		return -8;
 	}
 
@@ -242,7 +242,7 @@ int outputGif(OUTPUT_INFO* oip) {
 
 		int idx = 0;
 		int beginBody = -1;
-		/// <summary>Graphic Control Extension ‚©‚Ç‚¤‚©</summary>
+		/// <summary>Graphic Control Extension ã‹ã©ã†ã‹</summary>
 		int isGCE = 0;
 		int endBody = -1;
 
@@ -251,15 +251,15 @@ int outputGif(OUTPUT_INFO* oip) {
 		idx += 13 + 3 * 256; // GIF Header
 
 		beginBody = idx;
-		// ŠJn Graphic Control Extension ‚©‚Ç‚¤‚©
+		// é–‹å§‹ Graphic Control Extension ã‹ã©ã†ã‹
 		if (buf[idx] == 0x21 && buf[idx + 1] == 0xf9) {
 			isGCE = 1;
 		}
 
-		// ~‚ß
+		// æ­¢ã‚
 		if (buf[byteRead - 2] == 0x00 && buf[byteRead - 1] == 0x3b) {
 			endBody = byteRead - 1;
-		} else { // ƒGƒ‰[
+		} else { // ã‚¨ãƒ©ãƒ¼
 			endBody = byteRead;
 		}
 
@@ -338,13 +338,13 @@ int outputGif(OUTPUT_INFO* oip) {
 
 		fclose(pfOut);
 
-		//oip->func_update_preview(); // NOTE: –³‚¢‚ç‚µ‚¢
+		//oip->func_update_preview(); // NOTE: ç„¡ã„ã‚‰ã—ã„
 	}
 
 	free(palette);
 
 	//WCHAR str[STRBUF] ;
-	//StringCbPrintf(str, STRBUF, TEXT("o—Í‚µ‚Ü‚µ‚½\n%d ƒRƒ}"), oip->n);
+	//StringCbPrintf(str, STRBUF, TEXT("å‡ºåŠ›ã—ã¾ã—ãŸ\n%d ã‚³ãƒ"), oip->n);
 	//MessageBoxW(NULL, str, oip->savefile, MB_OK);
 
 	//CloseHandle(handle);
@@ -355,8 +355,8 @@ int outputGif(OUTPUT_INFO* oip) {
 /**
  * @note
  * Graphic Control Extension
- * ³‚µ‚¢‚Æ 21 F9 04 "09" "03 00" 00   00
- * ‚»‚µ‚Ä‰æ‘œ‚Æ‚©‚ª‘±‚­BImage Block
+ * æ­£ã—ã„ã¨ 21 F9 04 "09" "03 00" 00   00
+ * ãã—ã¦ç”»åƒã¨ã‹ãŒç¶šãã€‚Image Block
  * 2C "00 00" "00 00" "40 01" "B4 00"
  * http://www.tohoho-web.com/wwwgif.htm
  * @endnote
@@ -364,50 +364,50 @@ int outputGif(OUTPUT_INFO* oip) {
 
 
 //---------------------------------------------------------------------
-//		o—Íƒvƒ‰ƒOƒCƒ“o—ÍŠÖ”
+//		å‡ºåŠ›ãƒ—ãƒ©ã‚°ã‚¤ãƒ³å‡ºåŠ›é–¢æ•°
 //---------------------------------------------------------------------
 //
-//	oip->flag;				// ƒtƒ‰ƒO
-//							// OUTPUT_INFO_FLAG_VIDEO	: ‰æ‘œƒf[ƒ^‚ ‚è
-//							// OUTPUT_INFO_FLAG_AUDIO	: ‰¹ºƒf[ƒ^‚ ‚è
-//	oip->w,oip->h;			// c‰¡ƒTƒCƒY
-//	oip->rate,oip->scale;	// ƒtƒŒ[ƒ€ƒŒ[ƒg
-//	oip->n;					// ƒtƒŒ[ƒ€”
-//	oip->size;				// ‚PƒtƒŒ[ƒ€‚ÌƒoƒCƒg”
-//	oip->audio_rate;		// ‰¹ºƒTƒ“ƒvƒŠƒ“ƒOƒŒ[ƒg
-//	oip->audio_ch;			// ‰¹ºƒ`ƒƒƒ“ƒlƒ‹”
-//	oip->audio_n;			// ‰¹ºƒTƒ“ƒvƒŠƒ“ƒO”
-//	oip->audio_size;		// ‰¹º‚PƒTƒ“ƒvƒ‹‚ÌƒoƒCƒg”
-//	oip->savefile;			// ƒZ[ƒuƒtƒ@ƒCƒ‹–¼‚Ö‚Ìƒ|ƒCƒ“ƒ^
+//	oip->flag;				// ãƒ•ãƒ©ã‚°
+//							// OUTPUT_INFO_FLAG_VIDEO	: ç”»åƒãƒ‡ãƒ¼ã‚¿ã‚ã‚Š
+//							// OUTPUT_INFO_FLAG_AUDIO	: éŸ³å£°ãƒ‡ãƒ¼ã‚¿ã‚ã‚Š
+//	oip->w,oip->h;			// ç¸¦æ¨ªã‚µã‚¤ã‚º
+//	oip->rate,oip->scale;	// ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ¬ãƒ¼ãƒˆ
+//	oip->n;					// ãƒ•ãƒ¬ãƒ¼ãƒ æ•°
+//	oip->size;				// ï¼‘ãƒ•ãƒ¬ãƒ¼ãƒ ã®ãƒã‚¤ãƒˆæ•°
+//	oip->audio_rate;		// éŸ³å£°ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ãƒ¬ãƒ¼ãƒˆ
+//	oip->audio_ch;			// éŸ³å£°ãƒãƒ£ãƒ³ãƒãƒ«æ•°
+//	oip->audio_n;			// éŸ³å£°ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°æ•°
+//	oip->audio_size;		// éŸ³å£°ï¼‘ã‚µãƒ³ãƒ—ãƒ«ã®ãƒã‚¤ãƒˆæ•°
+//	oip->savefile;			// ã‚»ãƒ¼ãƒ–ãƒ•ã‚¡ã‚¤ãƒ«åã¸ã®ãƒã‚¤ãƒ³ã‚¿
 //
 //	void *oip->func_get_video( int frame );
-//							// DIBŒ`®(RGB24bit)‚Ì‰æ‘œƒf[ƒ^‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğæ“¾‚µ‚Ü‚·B
-//							// frame	: ƒtƒŒ[ƒ€”Ô†
-//							// –ß‚è’l	: ƒf[ƒ^‚Ö‚Ìƒ|ƒCƒ“ƒ^
+//							// DIBå½¢å¼(RGB24bit)ã®ç”»åƒãƒ‡ãƒ¼ã‚¿ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’å–å¾—ã—ã¾ã™ã€‚
+//							// frame	: ãƒ•ãƒ¬ãƒ¼ãƒ ç•ªå·
+//							// æˆ»ã‚Šå€¤	: ãƒ‡ãƒ¼ã‚¿ã¸ã®ãƒã‚¤ãƒ³ã‚¿
 //	void *oip->func_get_audio( int start,int length,int *readed );
-//							// 16bitPCMŒ`®‚Ì‰¹ºƒf[ƒ^‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğæ“¾‚µ‚Ü‚·B
-//							// start	: ŠJnƒTƒ“ƒvƒ‹”Ô†
-//							// length	: “Ç‚İ‚ŞƒTƒ“ƒvƒ‹”
-//							// readed	: “Ç‚İ‚Ü‚ê‚½ƒTƒ“ƒvƒ‹”
-//							// –ß‚è’l	: ƒf[ƒ^‚Ö‚Ìƒ|ƒCƒ“ƒ^
+//							// 16bitPCMå½¢å¼ã®éŸ³å£°ãƒ‡ãƒ¼ã‚¿ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’å–å¾—ã—ã¾ã™ã€‚
+//							// start	: é–‹å§‹ã‚µãƒ³ãƒ—ãƒ«ç•ªå·
+//							// length	: èª­ã¿è¾¼ã‚€ã‚µãƒ³ãƒ—ãƒ«æ•°
+//							// readed	: èª­ã¿è¾¼ã¾ã‚ŒãŸã‚µãƒ³ãƒ—ãƒ«æ•°
+//							// æˆ»ã‚Šå€¤	: ãƒ‡ãƒ¼ã‚¿ã¸ã®ãƒã‚¤ãƒ³ã‚¿
 //	BOOL oip->func_is_abort( void );
-//							// ’†’f‚·‚é‚©’²‚×‚Ü‚·B
-//							// –ß‚è’l	: TRUE‚È‚ç’†’f
+//							// ä¸­æ–­ã™ã‚‹ã‹èª¿ã¹ã¾ã™ã€‚
+//							// æˆ»ã‚Šå€¤	: TRUEãªã‚‰ä¸­æ–­
 //	void oip->func_rest_time_disp( int now,int total );
-//							// c‚èŠÔ‚ğ•\¦‚³‚¹‚Ü‚·B
-//							// now		: ˆ—‚µ‚Ä‚¢‚éƒtƒŒ[ƒ€”Ô†
-//							// total	: ˆ—‚·‚é‘ƒtƒŒ[ƒ€”
-//							// –ß‚è’l	: TRUE‚È‚ç¬Œ÷
+//							// æ®‹ã‚Šæ™‚é–“ã‚’è¡¨ç¤ºã•ã›ã¾ã™ã€‚
+//							// now		: å‡¦ç†ã—ã¦ã„ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ç•ªå·
+//							// total	: å‡¦ç†ã™ã‚‹ç·ãƒ•ãƒ¬ãƒ¼ãƒ æ•°
+//							// æˆ»ã‚Šå€¤	: TRUEãªã‚‰æˆåŠŸ
 //	int oip->func_get_flag( int frame );
-//							//	ƒtƒ‰ƒO‚ğæ“¾‚µ‚Ü‚·B
-//							//	frame	: ƒtƒŒ[ƒ€”Ô†
-//							//	–ß‚è’l	: ƒtƒ‰ƒO
-//							//  OUTPUT_INFO_FRAME_FLAG_KEYFRAME		: ƒL[ƒtƒŒ[ƒ€„§
-//							//  OUTPUT_INFO_FRAME_FLAG_COPYFRAME	: ƒRƒs[ƒtƒŒ[ƒ€„§
+//							//	ãƒ•ãƒ©ã‚°ã‚’å–å¾—ã—ã¾ã™ã€‚
+//							//	frame	: ãƒ•ãƒ¬ãƒ¼ãƒ ç•ªå·
+//							//	æˆ»ã‚Šå€¤	: ãƒ•ãƒ©ã‚°
+//							//  OUTPUT_INFO_FRAME_FLAG_KEYFRAME		: ã‚­ãƒ¼ãƒ•ãƒ¬ãƒ¼ãƒ æ¨å¥¨
+//							//  OUTPUT_INFO_FRAME_FLAG_COPYFRAME	: ã‚³ãƒ”ãƒ¼ãƒ•ãƒ¬ãƒ¼ãƒ æ¨å¥¨
 //	BOOL oip->func_update_preview( void );
-//							//	ƒvƒŒƒrƒ…[‰æ–Ê‚ğXV‚µ‚Ü‚·B
-//							//	ÅŒã‚Éfunc_get_video‚Å“Ç‚İ‚Ü‚ê‚½ƒtƒŒ[ƒ€‚ª•\¦‚³‚ê‚Ü‚·B
-//							//	–ß‚è’l	: TRUE‚È‚ç¬Œ÷
+//							//	ãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼ç”»é¢ã‚’æ›´æ–°ã—ã¾ã™ã€‚
+//							//	æœ€å¾Œã«func_get_videoã§èª­ã¿è¾¼ã¾ã‚ŒãŸãƒ•ãƒ¬ãƒ¼ãƒ ãŒè¡¨ç¤ºã•ã‚Œã¾ã™ã€‚
+//							//	æˆ»ã‚Šå€¤	: TRUEãªã‚‰æˆåŠŸ
 //
 bool func_output(OUTPUT_INFO *oip) {
 	int result = outputGif(oip);
@@ -419,7 +419,7 @@ bool func_output(OUTPUT_INFO *oip) {
 
 
 //---------------------------------------------------------------------
-//		o—Íƒvƒ‰ƒOƒCƒ“İ’èŠÖ”
+//		å‡ºåŠ›ãƒ—ãƒ©ã‚°ã‚¤ãƒ³è¨­å®šé–¢æ•°
 //---------------------------------------------------------------------
 LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
 	switch(umsg) {
@@ -454,8 +454,8 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 /**
  * 
  *
- * @param[in] hwnd ƒEƒCƒ“ƒhƒEƒnƒ“ƒhƒ‹
- * @param[in] dll_hinst ƒCƒ“ƒXƒ^ƒ“ƒXƒnƒ“ƒhƒ‹
+ * @param[in] hwnd ã‚¦ã‚¤ãƒ³ãƒ‰ã‚¦ãƒãƒ³ãƒ‰ãƒ«
+ * @param[in] dll_hinst ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãƒãƒ³ãƒ‰ãƒ«
  */
 bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 	DialogBox(dll_hinst, TEXT("CONFIG"), hwnd, (DLGPROC)func_config_proc);
@@ -464,7 +464,7 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 }
 
 /**
- * –¢g—p
+ * æœªä½¿ç”¨
  * @param[out] data 
  */
 int func_config_get(void *data, int size) {
@@ -481,7 +481,7 @@ int func_config_get(void *data, int size) {
 }
 
 /**
- * –¢g—p
+ * æœªä½¿ç”¨
  * @param[in] data
  */
 int func_config_set(void *data, int size) {
@@ -506,20 +506,20 @@ LPCWSTR func_get_config_text() {
 
 
 //---------------------------------------------------------------------
-//		o—Íƒvƒ‰ƒOƒCƒ“\‘¢‘Ì’è‹`
+//		å‡ºåŠ›ãƒ—ãƒ©ã‚°ã‚¤ãƒ³æ§‹é€ ä½“å®šç¾©
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
-	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // ƒtƒ‰ƒO
-	TEXT("ƒOƒŒ[AGIFo—Í"),			//	ƒvƒ‰ƒOƒCƒ“‚Ì–¼‘O
-	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	o—Íƒtƒ@ƒCƒ‹‚ÌƒtƒBƒ‹ƒ^
-	TEXT("ƒOƒŒ[AGIFo—Í v0.3.1 by ƒEƒTƒM"),	//	ƒvƒ‰ƒOƒCƒ“‚Ìî•ñ
-	func_output,		//	o—Í‚ÉŒÄ‚Î‚ê‚éŠÖ”‚Ö‚Ìƒ|ƒCƒ“ƒ^
-	func_config,		//	o—Íİ’è‚Ìƒ_ƒCƒAƒƒO‚ğ—v‹‚³‚ê‚½‚ÉŒÄ‚Î‚ê‚éŠÖ”‚Ö‚Ìƒ|ƒCƒ“ƒ^ (NULL‚È‚çŒÄ‚Î‚ê‚Ü‚¹‚ñ)
-	func_get_config_text,	// ¶‚É•\¦‚·‚éƒeƒLƒXƒg‚ğ•Ô‚·
+	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // ãƒ•ãƒ©ã‚°
+	TEXT("GIFå‡ºåŠ›"),			//	ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã®åå‰
+	TEXT("GIF File (*.gif)\0*.gif\0AllFile (*.*)\0*.*\0"),		//	å‡ºåŠ›ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ•ã‚£ãƒ«ã‚¿
+	TEXT("GIFå‡ºåŠ› v0.3.1 by ã‚¦ã‚µã‚®"),	//	ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã®æƒ…å ±
+	func_output,		//	å‡ºåŠ›æ™‚ã«å‘¼ã°ã‚Œã‚‹é–¢æ•°ã¸ã®ãƒã‚¤ãƒ³ã‚¿
+	func_config,		//	å‡ºåŠ›è¨­å®šã®ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚’è¦æ±‚ã•ã‚ŒãŸæ™‚ã«å‘¼ã°ã‚Œã‚‹é–¢æ•°ã¸ã®ãƒã‚¤ãƒ³ã‚¿ (NULLãªã‚‰å‘¼ã°ã‚Œã¾ã›ã‚“)
+	func_get_config_text,	// å·¦ã«è¡¨ç¤ºã™ã‚‹ãƒ†ã‚­ã‚¹ãƒˆã‚’è¿”ã™
 };
 
 //---------------------------------------------------------------------
-//		o—Íƒvƒ‰ƒOƒCƒ“\‘¢‘Ì‚Ìƒ|ƒCƒ“ƒ^‚ğ“n‚·ŠÖ”
+//		å‡ºåŠ›ãƒ—ãƒ©ã‚°ã‚¤ãƒ³æ§‹é€ ä½“ã®ãƒã‚¤ãƒ³ã‚¿ã‚’æ¸¡ã™é–¢æ•°
 //---------------------------------------------------------------------
 EXTERN_C OUTPUT_PLUGIN_TABLE __declspec(dllexport)* __stdcall GetOutputPluginTable(void) {
 	return &output_plugin_table;
