@@ -147,7 +147,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\aviutl2_sdk\output2.h" />
+    <ClInclude Include="..\aviutl2_sdk\output2.h" />
     <ClInclude Include="fpgif_output.h" />
   </ItemGroup>
   <ItemGroup>

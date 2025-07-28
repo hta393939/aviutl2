@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <stdio.h>
 
-#include "../../aviutl2_sdk/output2.h"
+#include "../aviutl2_sdk/output2.h"
 #include "graygif_output.h"
 
 //#include <Shlwapi.h>

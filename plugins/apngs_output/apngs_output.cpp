@@ -5,7 +5,7 @@
 #include <windows.h>
 //#include <stdio.h>
 #include <strsafe.h>
-#include "../../aviutl2_sdk/output2.h"
+#include "../aviutl2_sdk/output2.h"
 #include "apngs_output.h"
 
 int makePng(unsigned char* pSrc,
