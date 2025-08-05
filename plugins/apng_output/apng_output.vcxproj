@@ -20,6 +20,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\aviutl2_sdk\output2.h" />
+    <ClInclude Include="apng_output.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="apng.cpp" />
+    <ClCompile Include="apng_output.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="apng_output.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="apng_output.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -135,7 +146,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;FPGIFOUTPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;APNGOUTPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
