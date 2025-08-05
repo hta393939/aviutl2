@@ -1,0 +1,136 @@
+--information:モザイク線 v0.2.1 by ウサギ
+--track@size:サイズ,2,200,5,1
+--track@radius:半径,1,10,1
+--check@c0:アラインする,0
+--value@pos:位置,{100,100,200,200}
+--[[pixelshader@psmain:
+  Texture2D intex : register(t0);
+  float4 psmain(float4 pos : SV_Position) : SV_Target {
+    float4 col = intex[int2(pos.xy)];
+    col.a = sign(col.a);
+    //col.r = 1.0;
+    return col;
+  }
+]]
+
+local sw = obj.screen_w
+local sh = obj.screen_h
+local sw2 = math.floor(sw / 2)
+local sh2 = math.floor(sh / 2)
+
+-- アンカーのセット
+obj.setanchor('pos', 2, 'line')
+
+-- 左上角が原点
+local cpos = {pos[1] + sw2, pos[2] + sh2, pos[3] + sw2, pos[4] + sh2}
+local ix = math.min(cpos[1], cpos[3])
+local ax = math.max(cpos[1], cpos[3])
+local iy = math.min(cpos[2], cpos[4])
+local ay = math.max(cpos[2], cpos[4])
+
+local w2, h2
+if c0 == 0 then
+  local w = ax - ix + 1
+  local h = ay - iy + 1
+  w2 = math.ceil(w / size) * size
+  h2 = math.ceil(h / size) * size
+  local dw = w2 - w
+  local dh = h2 - h
+  ix = ix - math.floor(dw / 2)
+  iy = iy - math.floor(dh / 2)
+  -- 後ろがはみ出していたら補正する
+  local dw2 = ix + w2 - sw
+  local dh2 = iy + h2 - sh
+  if dw2 > 0 then
+    ix = ix - dw2
+  end
+  if dh2 > 0 then
+    iy = iy - dh2
+  end
+
+  -- 前がはみ出していたら補正する
+  if ix < 0 then
+    ix = 0
+  end
+  if iy < 0 then
+    iy = 0
+  end
+
+else
+
+  ix = math.floor(ix / size) * size
+  ax = math.ceil((ax + 1) / size) * size
+  iy = math.floor(iy / size) * size
+  ay = math.ceil((ay + 1) / size) * size
+  w2 = ax - ix
+  h2 = ay - iy
+
+end
+
+if w2 > 0 and h2 > 0 then
+  -- 指定位置から取り出す
+  obj.setoption('drawtarget', 'tempbuffer', sw, sh)
+  obj.copybuffer('tempbuffer', 'framebuffer')
+
+  --obj.setoption('blend', 'alpha_sub') -- 減算
+
+  local dx = cpos[3] - cpos[1]
+  local dy = cpos[4] - cpos[2]
+  local sum = dx * dx + dy * dy
+  if sum ~= 0 then
+    local k = 1 / math.sqrt(sum)
+    dx = dx * k
+    dy = dy * k
+  else
+    dx = 1
+    dy = 0
+  end
+  dx = dx * radius
+  dy = dy * radius
+
+  local vx = -dy
+  local vy = dx
+
+  local lt = {cpos[1] - dx - vx, cpos[2] - dy - vy}
+  local rt = {cpos[3] + dx - vx, cpos[4] + dy - vy}
+  local rb = {cpos[3] + dx + vx, cpos[4] + dy + vy}
+  local lb = {cpos[1] - dx + vx, cpos[2] - dy + vy}
+
+  debug_print(string.format('%d, %d, %f, %f, %f, %f', obj.w, obj.h, dx, dy, vx, vy))
+
+  local a2 = 1
+  local t0 = {0,0,0, sw,0,0, sw,sh,0, 0,sh,0, 0,0,0,a2, 0,0,0,a2, 0,0,0,a2, 0,0,0,a2}
+  local t1 = {0,0,0, sw,0,0, sw,sh,0, 0,sh,0, 0,0,1,a2, 0,0,1,a2, 1,0,0,a2, 1,0,0,a2}
+  -- rgba は乗算済みアルファ
+  local t2 = {-sw,-sh,0, sw,-sh,0, sw,sh,0, -sw,sh,0, 0,0,1,a2, 0,0,1,a2, 1,0,0,a2, 1,0,0,a2}
+
+  obj.setoption('culling', 0) -- カリングしない
+  obj.setoption('sampler', 'clamp')
+
+  obj.load('figure', '背景', 0x00ff00, 100, 4000)
+  local t3 = {-sw,-sh,0, sw,-sh,0, sw,sh,0, -sw,sh,0, 0,0, obj.w,0, obj.w, obj.h, 0, obj.h}
+
+  -- 変化が無いのだが;;
+  obj.drawpoly({t3})
+
+  local a3 = 1
+  t0 = {lt[1], lt[2],0, rt[1], rt[2],0, rb[1],rb[2],0, lb[1],lb[2],0, 0,0,0,a3, 0,0,0,a3, 0,0,0,a3, 0,0,0,a3}
+  -- obj.drawpoly({t0})
+  debug_print(string.format('^5, %f, %f', a2, a3))
+
+  -- tempbuffer の内容が変わっていないように見えるのだが;;
+  obj.load('tempbuffer', ix, iy, w2, h2)
+  --obj.effect('リサイズ', '拡大率', 100 / size)
+
+  obj.pixelshader('psmain', 'object', 'object') 
+  -- aが含まれる場合、1.0にする
+
+  --obj.effect('リサイズ', '拡大率', 100 * size, '補間なし', 1)
+  obj.setoption('drawtarget', 'framebuffer')
+  obj.setoption('blend', 'none')
+  obj.draw(ix - sw2 + w2 / 2, iy - sh2 + h2 / 2)
+end
+
+-- 確認バージョン
+-- AviUtl ExEdit2 version2.0 beta5
+
