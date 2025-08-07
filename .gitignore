@@ -1,4 +1,10 @@
 
+*.auo2
+
+*.aps
+*.user
+*.filters
+*.res
 
 *.log
 *.lib
