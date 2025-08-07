@@ -1,0 +1,154 @@
+--information:モザイク線 v0.2.1 by ウサギ
+--track@size:サイズ,2,200,5,1
+--track@radius:半径,1,100,1,1
+--check@c0:アラインする,0
+--check@c1:デバグ1,1
+--value@pos:位置,{100,100,200,200}
+--[[pixelshader@psmain3:
+  Texture2D intex : register(t0);
+  Texture2D alphatex : register(t1);
+  float4 psmain3(float4 pos : SV_Position) : SV_Target {
+    float4 col = intex[int2(pos.xy)];
+    float4 alpharef = alphatex[int2(pos.xy)];
+    if (alpharef.r < 1.0) {
+      col = float4(0.0, 0.0, 0.0, 0.0);
+    }
+    return col;
+  }
+]]
+
+local sw = obj.screen_w
+local sh = obj.screen_h
+local sw2 = math.floor(sw / 2)
+local sh2 = math.floor(sh / 2)
+local sw5 = sw * 0.5
+local sh5 = sh * 0.5
+
+local cx = obj.x
+local cy = obj.y
+
+-- アンカーのセット
+obj.setanchor('pos', 2, 'line')
+
+-- 左上角が原点
+local cpos = {pos[1] + sw5 + cx, pos[2] + sh5 + cy, pos[3] + sw5 + cx, pos[4] + sh5 + cy}
+local ix = math.min(cpos[1], cpos[3])
+local ax = math.max(cpos[1], cpos[3])
+local iy = math.min(cpos[2], cpos[4])
+local ay = math.max(cpos[2], cpos[4])
+
+local w2, h2
+if c0 == 0 then
+  local w = ax - ix + 1
+  local h = ay - iy + 1
+  w2 = math.ceil(w / size) * size
+  h2 = math.ceil(h / size) * size
+  local dw = w2 - w
+  local dh = h2 - h
+  ix = ix - math.floor(dw / 2)
+  iy = iy - math.floor(dh / 2)
+  -- 後ろがはみ出していたら補正する
+  local dw2 = ix + w2 - sw
+  local dh2 = iy + h2 - sh
+  if dw2 > 0 then
+    ix = ix - dw2
+  end
+  if dh2 > 0 then
+    iy = iy - dh2
+  end
+
+  -- 前がはみ出していたら補正する
+  if ix < 0 then
+    ix = 0
+  end
+  if iy < 0 then
+    iy = 0
+  end
+
+else
+
+  ix = math.floor(ix / size) * size
+  ax = math.ceil((ax + 1) / size) * size
+  iy = math.floor(iy / size) * size
+  ay = math.ceil((ay + 1) / size) * size
+  w2 = ax - ix
+  h2 = ay - iy
+
+end
+
+if w2 > 0 and h2 > 0 then
+  local dx = cpos[3] - cpos[1]
+  local dy = cpos[4] - cpos[2]
+  local sum = dx * dx + dy * dy
+  if sum ~= 0 then
+    local k = 1 / math.sqrt(sum)
+    dx = dx * k
+    dy = dy * k
+  else
+    dx = 1
+    dy = 0
+  end
+  dx = dx * radius
+  dy = dy * radius
+
+  local vx = -dy
+  local vy = dx
+
+  local lt = {cpos[1] - dx - vx - sw5, cpos[2] - dy - vy - sh5}
+  local rt = {cpos[3] + dx - vx - sw5, cpos[4] + dy - vy - sh5}
+  local rb = {cpos[3] + dx + vx - sw5, cpos[4] + dy + vy - sh5}
+  local lb = {cpos[1] - dx + vx - sw5, cpos[2] - dy + vy - sh5}
+
+  local cl = {ix, iy, sw - w2 - ix, sh - h2 - iy}
+
+  -- debug_print(string.format('%d, %d, %f, %f, %f, %f', obj.w, obj.h, dx, dy, vx, vy))
+
+  -- 全体黒に白で描画
+  obj.setoption('drawtarget', 'tempbuffer', sw,sh)
+  local t2 = {-sw,-sh,0, sw,-sh,0, sw,sh,0, -sw,sh,0, 0,0,0,1, 0,0,0,1, 0,0,0,1, 0,0,0,1}
+  obj.drawpoly({t2})
+
+  local a3 = 1
+  local t2 = {lt[1], lt[2],0, rt[1], rt[2],0, rb[1],rb[2],0, lb[1],lb[2],0, 1,1,1,a3, 1,1,1,a3, 1,1,1,a3, 1,1,1,a3}
+  obj.drawpoly({t2})
+
+  obj.load('tempbuffer')
+  obj.effect('クリッピング', '中心の位置を変更', 1, '左', cl[1], '上', cl[2], '右', cl[3], '下', cl[4])
+  obj.effect('リサイズ', '拡大率', 100 / size)
+  obj.copybuffer('cache:0001', 'object') -- キャッシュに逃がす
+
+  -- テクスチャの方
+  obj.load('framebuffer')
+  obj.effect('クリッピング', '中心の位置を変更', 1, '左', cl[1], '上', cl[2], '右', cl[3], '下', cl[4])
+  obj.effect('リサイズ', '拡大率', 100 / size)
+  obj.copybuffer('cache:0002', 'object') -- キャッシュに逃がす
+
+  local mini_w = obj.w
+  local mini_h = obj.h
+
+  -- object であってない???
+  obj.setoption('drawtarget', 'tempbuffer', mini_w, mini_h)
+  obj.pixelshader('psmain3', 'tempbuffer', {'cache:0002', 'cache:0001'})
+  obj.load('tempbuffer')
+
+  obj.effect('リサイズ', '拡大率', 100 * size, '補間なし', 1)
+  -- obj.w, obj.h が w2, h2 に戻ってなかったら修正する
+  if obj.w ~= w2 or obj.h ~= h2 then
+    debug_print(string.format('resize, %d, %d, %d, %d', obj.w, obj.h, w2, h2))
+  end
+
+  if true then
+    obj.setoption('drawtarget', 'framebuffer')
+    obj.draw(ix - sw5 - obj.x + w2 * 0.5, iy - sh5 - obj.y + h2 * 0.5)
+    obj.setoption('drawtarget', 'tempbuffer', 100, 100)
+    obj.load('tempbuffer')
+  else
+    obj.ox = ix - sw5 - obj.x + w2 * 0.5
+    obj.oy = iy - sh5 - obj.y + h2 * 0.5
+    debug_print(string.format('1v %f 正統はこっちだが操作しづらい', obj.ox))
+  end
+end
+
+-- 確認バージョン
+-- AviUtl ExEdit2 version2.0 beta5
+
