@@ -20,10 +20,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\aviutl2_sdk\output2.h" />
+    <ClInclude Include="apng.hpp" />
     <ClInclude Include="apng_output.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="apng.cpp" />
     <ClCompile Include="apng_output.cpp" />
   </ItemGroup>
   <ItemGroup>

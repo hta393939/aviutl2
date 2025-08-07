@@ -6,22 +6,9 @@
 #include <strsafe.h>
 #include "../aviutl2_sdk/output2.h"
 #include "apng_output.h"
+#include "apng.hpp"
 
 #define STRBUF (4096)
-
-int makePng(unsigned char* pSrc,
-			int imgWidth,
-			int imgHeight,
-			wchar_t* name);
-int makePng7(const unsigned char* pSrc,
-			int bufWidth,
-			int imgHeight,
-			const wchar_t* name);
-HGLOBAL makeMemoryPng(const float* pSrc,
-	int imgWidth,
-	int imgHeight,
-	int* pByte,
-	int isStraighten);
 
 /// プラグイン側 ///
 
@@ -30,7 +17,7 @@ HGLOBAL makeMemoryPng(const float* pSrc,
 //---------------------------------------------------------------------
 typedef struct CONFIG_ {
 	TCHAR name[260];
-	int isStraighten;
+	int straighten;
 } CONFIG;
 static CONFIG config = {
 	L"_%05d",
@@ -92,9 +79,20 @@ bool func_output(OUTPUT_INFO *oip) {
 	// 処理ピクセル幅
 	int width = oip->w;
 
-// ファイル名
-	//StringCchCopy(path, 800, oip->savefile);
+	auto fh = CreateFile(oip->savefile,
+		GENERIC_WRITE,
+		FILE_SHARE_READ,
+		NULL,
+		CREATE_ALWAYS,
+		NULL, NULL);
+	if (fh == INVALID_HANDLE_VALUE) {
+		return false;
+	}
 
+	u8 buf[4096] = { 0 };
+	CHUNK chunks[260];
+
+	auto tagIDAT = MAKEFOURCC('I', 'D', 'A', 'T');
 	auto fourCC = MAKEFOURCC('H', 'F', '6', '4');
 	for(int i = 0; i < frames; ++i) {
 		oip->func_rest_time_disp(i, frames);
@@ -103,17 +101,108 @@ bool func_output(OUTPUT_INFO *oip) {
 		}
 
 		auto pixelp = oip->func_get_video(i, fourCC);
-		//wprintf_s(buf,1000,config.name,i);
-		//wprintf_s(p2,800, L"%s%s%s",name,buf,ext);
 
 		int byteNum = 0;
 		auto mem = makeMemoryPng((const float*)pixelp,
 			width, height, 
 			&byteNum,
-			config.isStraighten);
+			config.straighten);
+		if (!mem) {
+			return false;
+		}
+
+		// パースする
+		auto num = search((u8*)mem, byteNum, chunks, 260);
+
+
+		if (i == 0) { // 初回のときIHDRを書き出す
+			{
+				int byteNum = 8;
+				buf[0] = 0x89;
+				buf[1] = 0x50;
+				buf[2] = 0x4e;
+				buf[3] = 0x47;
+				buf[4] = 0x0d;
+				buf[5] = 0x0a;
+				buf[6] = 0x1a;
+				buf[7] = 0x0a;
+				WriteFile(fh, buf, byteNum, NULL, NULL);
+			}
+			{ // IHDR
+				int byteNum = chunks[0].bodyByte + 12;
+				u8* p = ((u8*)mem) + chunks[0].offset;
+				WriteFile(fh, p, byteNum, NULL, NULL);
+			}
+		}
+
+		if (i == 0) { // 初回のとき acTL
+			int byteNum = 20;
+			writeu32be(buf, 8, frames, 260);
+			writeu32be(buf, 12, 0, 260); // repeat 数
+			makeChunk(buf, 0, byteNum, MAKEFOURCC('a', 'c', 'T', 'L'));
+			WriteFile(fh, buf, byteNum, NULL, NULL);
+		}
+		else { // fcTL
+			int rate = oip->rate;
+			int scale = oip->scale;
+			if (scale > 60000) {
+				rate = rate * 60000 / scale;
+				scale = 60000;
+			}
+
+			int byteNum = 26 + 12;
+			writeu32be(buf, 8, 0, 260); // seq
+			writeu32be(buf, 12, width, 260);
+			writeu32be(buf, 16, height, 260);
+			writeu32be(buf, 20, 0, 260); // x_offset
+			writeu32be(buf, 24, 0, 260); // y_offset
+			writeu16be(buf, 28, rate, 260); // nume
+			writeu16be(buf, 30, scale, 260); // deno
+			buf[32] = 1; // dispose_op 1: 透過
+			buf[33] = 0; // blend_op 0: 上書き
+			auto result = makeChunk(buf, 0, byteNum, MAKEFOURCC('f', 'c', 'T', 'L'));
+			WriteFile(fh, buf, byteNum, NULL, NULL);
+		}
+
+		for (int j = 0; j < num; ++j) {
+			auto tag = chunks[i].tag;
+			if (tag != tagIDAT) {
+				continue;
+			}
+
+			u8* p = ((u8*)mem) + chunks[i].offset;
+			if (i == 0) { // IDAT のまま
+				int byteNum = chunks[i].bodyByte + 12;
+				WriteFile(fh, p, byteNum, NULL, NULL);
+			}
+			else { // 初回じゃないとき fdAT
+				int byteNum = chunks[i].bodyByte + 12;
+				// seq
+				auto result = makeChunk(p, 0, byteNum, MAKEFOURCC('f', 'd', 'A', 'T'));
+				WriteFile(fh, p, byteNum, NULL, NULL);
+			}
+		}
 
 		//oip->func_update_preview();
 	}
+
+
+	{ // 最後に書き出す
+		int byteNum = 16;
+		buf[8] = 'v';
+		buf[9] = '2';
+		buf[10] = '1';
+		buf[11] = 0;
+		auto result = makeChunk(buf, 0, byteNum, MAKEFOURCC('i', 'T', 'X', 't'));
+		WriteFile(fh, buf, byteNum, NULL, NULL);
+	}
+	{ // IEND
+		int byteNum = 12;
+		auto result = makeChunk(buf, 0, byteNum, MAKEFOURCC('I', 'E', 'N', 'D'));
+		WriteFile(fh, buf, byteNum, NULL, NULL);
+	}
+	// 閉じる
+	CloseHandle(fh);
 
 	return true;
 }
@@ -127,7 +216,7 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 		case WM_INITDIALOG:
 			SetDlgItemText(hdlg, IDC_EDIT0, config.name);
 
-			if (config.isStraighten == 0) {
+			if (config.straighten == 0) {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_UNCHECKED);
 			} else {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_CHECKED);
@@ -142,9 +231,9 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 					GetDlgItemText(hdlg, IDC_EDIT0, config.name, sizeof(config.name));
 
 					if (IsDlgButtonChecked(hdlg, IDC_CHECK1) == BST_CHECKED) {
-						config.isStraighten = 1;
+						config.straighten = 1;
 					} else {
-						config.isStraighten = 0;
+						config.straighten = 0;
 					}
 					EndDialog(hdlg, LOWORD(wparam));
 					break;
@@ -188,7 +277,7 @@ int func_config_set(void *data, int size) {
 
 WCHAR gConfigText[STRBUF] = { 0 };
 LPCWSTR func_get_config_text() {
-	StringCchPrintf(gConfigText, STRBUF, TEXT("name, %d, isStraighten, %d"), config.name, config.isStraighten);
+	StringCchPrintf(gConfigText, STRBUF, TEXT("name, %d, isStraighten, %d"), config.name, config.straighten);
 	return gConfigText;
 }
 
