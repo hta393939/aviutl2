@@ -92,7 +92,7 @@ bool func_output(OUTPUT_INFO *oip) {
 	u8 buf[4096] = { 0 };
 	CHUNK chunks[260];
 
-	auto tagIDAT = MAKEFOURCC('I', 'D', 'A', 'T');
+	auto ccIDAT = MAKEFOURCC('I', 'D', 'A', 'T');
 	auto fourCC = MAKEFOURCC('H', 'F', '6', '4');
 	for(int i = 0; i < frames; ++i) {
 		oip->func_rest_time_disp(i, frames);
@@ -103,7 +103,7 @@ bool func_output(OUTPUT_INFO *oip) {
 		auto pixelp = oip->func_get_video(i, fourCC);
 
 		int byteNum = 0;
-		auto mem = makeMemoryPng((const float*)pixelp,
+		auto mem = makeMemoryPng((const unsigned short*)pixelp,
 			width, height, 
 			&byteNum,
 			config.straighten);
@@ -157,8 +157,8 @@ bool func_output(OUTPUT_INFO *oip) {
 		}
 
 		for (int j = 0; j < num; ++j) {
-			auto tag = chunks[i].tag;
-			if (tag != tagIDAT) {
+			auto cc = chunks[i].cc;
+			if (cc != ccIDAT) {
 				continue;
 			}
 

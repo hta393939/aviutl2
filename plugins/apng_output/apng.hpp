@@ -17,7 +17,7 @@ typedef unsigned int u32;
 typedef struct _CHUNK {
 	int offset;
 	u32 bodyByte;
-	u32 tag;
+	u32 cc;
 	u32 crc;
 } CHUNK;
 
@@ -76,6 +76,44 @@ u32 readu32be(const u8* pSrc, int offset) {
 	return (val[0] << 24) | (val[1] << 16) | (val[2] << 8) | val[3];
 }
 
+
+// 指数テーブル
+float gk2[32];
+
+void makeTable() {
+	float k = 64.0f; // 2^6
+	for (int i = 0; i < 32; ++i) {
+		gk2[31 - i] = k;
+		k *= 0.5f;
+	}
+	gk2[0] = gk2[1];
+}
+
+float u16tof(unsigned short u16) {
+	if (u16 == 0) {
+		return 0.0f;
+	}
+	int exp = ((u16 >> 10) & 0x1f);
+	int bits = (u16 & 0x3ff); // 10bit
+	if (exp == 0) { // ケチ表現
+		return gk2[0] * (float)bits;
+	}
+	int signBit = (u16 & 0x8000) ? 0x80000000 : 0;
+	if (exp == 31) { // 無限大またはNaN 8bit exp
+		unsigned int buf = 0x7f800000 | signBit | ((bits != 0) ? 1 : 0);
+		float* p = (float*)&buf;
+		return *p;
+	}
+
+	float ret = gk2[exp] * (float)(bits | 0x400);
+	if (signBit) {
+		ret = -ret;
+	}
+	return ret;
+}
+
+
+
 /// <summary>
 /// チャンクパース
 /// </summary>
@@ -98,8 +136,17 @@ int search(const u8* pSrc, int byteNum, CHUNK* pChunks, int maxNum) {
 
 		p->bodyByte = readu32be(pSrc, offset);
 		offset += 4;
+		if (p->bodyByte >= 0x1000000) {
+			break;
+		}
 
-		p->tag = readu32be(pSrc, offset);
+		//p->cc = readu32be(pSrc, offset);
+		u32 cc = 0; // fourcc に合わせる
+		cc |= (((u32)pSrc[offset]) << 0);
+		cc |= (((u32)pSrc[offset+1]) << 8);
+		cc |= (((u32)pSrc[offset+2]) << 16);
+		cc |= (((u32)pSrc[offset+3]) << 24);
+		p->cc = cc;
 		offset += 4;
 
 		offset += p->bodyByte;
@@ -112,6 +159,10 @@ int search(const u8* pSrc, int byteNum, CHUNK* pChunks, int maxNum) {
 		
 		++chunkNum;
 		++p;
+
+		if (offset == byteNum) {
+			break;
+		}
 	}
 	return chunkNum;
 }
@@ -125,11 +176,12 @@ int makeChunk(u8* pDst, int inOffset, int byteNum, u32 fourcc) {
 	pDst[offset + 2] = (bodybyte >> 8) & 0xff;
 	pDst[offset + 3] = bodybyte & 0xff;
 
+	// 注: ここはMAKEFOURCCから得るので下位から
 	offset += 4;
-	pDst[offset] = (fourcc >> 24) & 0xff;
-	pDst[offset + 1] = (fourcc >> 16) & 0xff;
-	pDst[offset + 2] = (fourcc >> 8) & 0xff;
-	pDst[offset + 3] = fourcc & 0xff;
+	pDst[offset] = (fourcc >> 0) & 0xff;
+	pDst[offset + 1] = (fourcc >> 8) & 0xff;
+	pDst[offset + 2] = (fourcc >> 16) & 0xff;
+	pDst[offset + 3] = (fourcc >> 24) & 0xff;
 
 	offset = byteNum - 4;
 	auto crc = calcCrc(pDst + 4, bodybyte + 4);
@@ -173,7 +225,7 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
 }
 
 
-HGLOBAL makeMemoryPng(const float* pSrc,
+HGLOBAL makeMemoryPng(const unsigned short* pSrc,
 	int imgWidth,
 	int imgHeight,
 	int* pByte,
@@ -185,6 +237,8 @@ HGLOBAL makeMemoryPng(const float* pSrc,
 	int retVal = 0;
 	HGLOBAL hRet = NULL;
 	HGLOBAL hMem = NULL;
+
+	makeTable();
 	do {
 		// GDI+を使用
 
@@ -209,10 +263,10 @@ HGLOBAL makeMemoryPng(const float* pSrc,
 		int* p32 = (int*)hImg;
 		auto pAddr = pSrc;
 		for (int i = 0; i < pixNum; ++i) {
-			float r = pAddr[0];
-			float g = pAddr[1];
-			float b = pAddr[2];
-			float a = pAddr[3];
+			float r = u16tof(pAddr[0]);
+			float g = u16tof(pAddr[1]);
+			float b = u16tof(pAddr[2]);
+			float a = u16tof(pAddr[3]);
 			float k = (isStraighten && a != 0.0f) ? (1.0f / a) : 1.0f;
 			r *= k;
 			g *= k;
