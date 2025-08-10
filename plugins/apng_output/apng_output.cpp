@@ -269,7 +269,7 @@ int func_config_set(void *data, int size) {
 
 WCHAR gConfigText[STRBUF] = { 0 };
 LPCWSTR func_get_config_text() {
-	StringCchPrintf(gConfigText, STRBUF, TEXT("name, %d, isStraighten, %d"), config.name, config.straighten);
+	StringCchPrintf(gConfigText, STRBUF, TEXT("name, %s, RGB‚ðA‚ÅŠ„‚é, %d"), config.name, config.straighten);
 	return gConfigText;
 }
 
