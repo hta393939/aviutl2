@@ -7,8 +7,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "avi_output", "avi_output\av
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "graygif_output", "graygif_output\graygif_output.vcxproj", "{B96E0576-1674-494A-88C4-E0A704977D22}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "apngs_output", "apngs_output\apngs_output.vcxproj", "{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fpgif_output", "fpgif_output\fpgif_output.vcxproj", "{68EBB8D5-CC3C-472E-AA3A-79E049269E4E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pngs_output", "pngs_output\pngs_output.vcxproj", "{66357E32-AAC9-4CF4-82F8-710FB70899EC}"
@@ -39,14 +37,6 @@ Global
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x64.Build.0 = Release|x64
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x86.ActiveCfg = Release|Win32
 		{B96E0576-1674-494A-88C4-E0A704977D22}.Release|x86.Build.0 = Release|Win32
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x64.ActiveCfg = Debug|x64
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x64.Build.0 = Debug|x64
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x86.ActiveCfg = Debug|Win32
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Debug|x86.Build.0 = Debug|Win32
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x64.ActiveCfg = Release|x64
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x64.Build.0 = Release|x64
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x86.ActiveCfg = Release|Win32
-		{6A6B1E18-1A09-4453-B89E-1DA7E9E73110}.Release|x86.Build.0 = Release|Win32
 		{68EBB8D5-CC3C-472E-AA3A-79E049269E4E}.Debug|x64.ActiveCfg = Debug|x64
 		{68EBB8D5-CC3C-472E-AA3A-79E049269E4E}.Debug|x64.Build.0 = Debug|x64
 		{68EBB8D5-CC3C-472E-AA3A-79E049269E4E}.Debug|x86.ActiveCfg = Debug|Win32
