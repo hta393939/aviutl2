@@ -29,19 +29,20 @@ float u16tof(unsigned short u16) {
 	if (u16 == 0) {
 		return 0.0f;
 	}
-	int exp = ((u16 >> 10) & 0x1f);
-	int bits = (u16 & 0x3ff); // 10bit
-	if (exp == 0) { // ケチ表現
-		return gk2[0] * (float)bits;
-	}
 	int signBit = (u16 & 0x8000) ? 0x80000000 : 0;
-	if (exp == 31) { // 無限大またはNaN 8bit exp
-		unsigned int buf = 0x7f800000 | signBit | ((bits != 0) ? 1 : 0);
-		float* p = (float*)&buf;
-		return *p;
+	int biased = (int)((u16 >> 10) & 0x1f);
+	int bits = (int)(u16 & 0x3ff); // 10bit
+	if (biased == 0) { // ケチ表現
+		return (signBit ? -1.0f : 1.0f) * gk2[0] * (float)bits;
 	}
 
-	float ret = gk2[exp] * (float)(bits | 0x400);
+	if (biased == 31) { // 無限大またはNaN. 8bit exp
+		unsigned int buf = 0x7f800000 | signBit | (bits << 13);
+		float* p = (float*)&buf;
+		return (*p);
+	}
+
+	float ret = gk2[biased] * (float)(bits | 0x400);
 	if (signBit) {
 		ret = -ret;
 	}
@@ -52,34 +53,41 @@ unsigned short ftob16(float v) {
 	int b32 = 0;
 	CopyMemory(&b32, &v, 4);
 	bool isSign = (b32 < 0);
-	int exp = (b32 >> 23) & 0xff; // 0-255
-	int exp2 = exp - 127;
+	int biased = (b32 >> 23) & 0xff; // 0-255
+	int exp2 = biased - 127;
 	int bias16 = exp2 + 15;
 	int frac = b32 & 0x7fffff; // 23bit
 
 	u16 ret = (isSign) ? 0x8000 : 0x0000;
-	if (exp == 255) {
+	if (biased == 255) {
+		ret |= (u16)0x7c00;
 		if (frac == 0) {
-			ret |= 0x7c00; // 無限大
 			return ret;
 		}
 		frac >>= 13;
 		if (frac == 0) {
 			frac = 1;
 		}
-		ret |= 0x7c00 | ((u16)frac); // NaN
+		ret |= (u16)frac; // NaN
 		return ret;
 	}
 
-	if (bias16 >= 31) {
-		ret |= 0x7800 | 0x03ff; // half16の最大値
+	// -15(halfケチ), -14, 0, +14, +15, +16(halfでは無限大かNaN)
+	if (exp2 > 15) {
+		ret |= (30 << 10) | 0x03ff; // half16の最大値
 		return ret;
 	}
-	if (bias16 <= 0) {
-		ret |= 0x0001; // half16の最小値
+	if (exp2 < -14) {
+		frac |= 0x800000; // 23個より1つ上
+		frac >>= -1 - exp2;
+		if (frac == 0) {
+			frac = 1; // 最小に切り上げ
+		}
+		ret |= frac;
 		return ret;
 	}
-	frac >>= 13;
+
+	frac >>= 13; // 10bitだけ残す
 	ret |= (u16)frac;
 	ret |= (u16)(bias16 << 10);
 	return ret;
