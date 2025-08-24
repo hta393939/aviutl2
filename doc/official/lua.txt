@@ -488,6 +488,9 @@
         ○obj.getpixel(x,y[,type])
                 現在のオブジェクトのピクセル情報を取得します。
                 引数なしで呼ぶとオブジェクトのピクセル数を取得できます。
+                ※getpixel()はVRAMアクセスを低減する為にキャッシュしたものから値を返却します。
+                状況によってキャッシュが更新されずに正しい値が取得出来ない場合があります。(draw,pixel系の描画関連)
+                obj.pixeloption("get",xxx)を処理することで能動的にキャッシュを破棄することが出来ます。
                 x,y     : 取得するピクセルの座標
                 type    : ピクセル情報のタイプ("col","rgb")
                           ※省略時は obj.pixeloption("type") で指定したタイプ(通常は"col")
@@ -504,8 +507,30 @@
                                 横、縦のピクセル数
                                 w,h = obj.getpixel()
 
-       ○obj.pixeloption(name,value)
-                obj.getpixel()の処理オプションを設定します。
+        ○obj.putpixel(x,y,...)
+                現在のオブジェクトのピクセル情報を書き換えます。
+                引数なしで呼ぶとオブジェクトのピクセル数を取得できます。
+                受け渡すピクセル情報のタイプは obj.pixeloption("type") で指定したタイプになります。
+                ※putpixel()はピクセル毎にコンピュートシェーダーで実行するので処理は速くないです。
+                x,y     : 書き換えるピクセルの座標
+                色情報  : タイプが"col"の場合
+                                色情報(0x000000～0xffffff)と不透明度(0.0=透明/1.0=不透明)
+                                obj.putpixel(0,0,col,a)
+                          タイプが"rgb"の場合
+                                各8bit(0～255)のRGBA情報
+                                obj.putpixel(0,0,r,g,b,a)
+                          タイプが"yc"の場合
+                                YCbCr内部形式
+                                obj.putpixel(0,0,y,cb,cr,a)
+
+        ○obj.copypixel(dst_x,dst_y,src_x,src_y)
+                現在のオブジェクトのピクセル情報をコピーします。
+                ※copypixel()はピクセル毎にコンピュートシェーダーで実行するので処理は速くないです。
+                dst_x,dst_y : コピー先の座標
+                src_x,src_y : コピー元の座標
+
+        ○obj.pixeloption(name,value)
+                obj.getpixel(),obj.putpixel(),obj.copypixel() の処理オプションを設定します。
                 ※スクリプトの呼び出し毎に指定する必要があります。
                 name    : オプション名
                 value   : オプション値
@@ -517,6 +542,14 @@
                 ◇ピクセル情報の読み出し先を指定する
                         obj.pixeloption("get",value)
                         value   : "object"=オブジェクト / "framebuffer"=フレームバッファ
+
+                ◇ピクセル情報の書き込み先を指定する
+                        obj.pixeloption("put",value)
+                        value   : "object"=オブジェクト / "framebuffer"=フレームバッファ
+
+                ◇書き込む時のブレンドタイプを指定する
+                        obj.pixeloption("blend",value)
+                        value   : 引数なし=置き換え / 0=通常 / 1=加算 / 2=減算 / 3=乗算
 
        ○obj.getaudio(buf,file,type,size)
                 音声ファイルからオーディオデータを取得します。
@@ -562,7 +595,7 @@
                           "cache:xxxx"=キャッシュバッファ(xxxxは任意の名前)
                 color   : 色(0x000000～0xffffff) ※未指定の場合は透明色
 
-        ○pixelshader(name,target,{resource,...}[,{constant,...},blend])
+        ○obj.pixelshader(name,target,{resource,...}[,{constant,...},blend])
                 ピクセルシェーダーを実行します。
                 name      : シェーダーの登録名 ※登録したシェーダー名を文字列で指定します。
                 target    : 出力先のバッファ名
@@ -587,7 +620,7 @@
                             "draw"=出力をアルファブレンドします
                             "add"=出力を加算合成します
 
-        ○computeshader(name,{target},{resource,...}[,{constant,...},countX,countY,countZ])
+        ○obj.computeshader(name,{target},{resource,...}[,{constant,...},countX,countY,countZ])
                 コンピュートシェーダーを実行します。
                 name      : シェーダーの登録名 ※登録したシェーダー名を文字列で指定します。
                 target    : 読み書き先のバッファ名の配列(1つの場合は直接バッファ名で指定出来ます)
@@ -831,6 +864,13 @@
         obj.copybuffer()で画像ファイルのコピーが正しく反映されない場合があるのを修正
         obj.copybuffer()でオブジェクトを更新した時にobj変数が更新されていないのを修正
         オブジェクトの画像が無い状態でobj.drawpoly()を呼び出すと落ちる場合があるのを修正
+
+        [2025/8/24]
+        出力ログの内容によって落ちる場合があるのを修正
+        obj.getpixel()のキャッシュ処理の修正と処理説明を追加
+        obj.putpixel(),obj.copypixel()を追加
+        obj.pixeloption()のオプションを一部追加
+        obj.setoption()の合成モードの処理を一部修正
 
 
 - Lua/LuaJITのバイナリについて -
