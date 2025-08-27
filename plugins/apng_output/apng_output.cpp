@@ -13,70 +13,21 @@
 //		出力プラグイン内部変数
 //---------------------------------------------------------------------
 typedef struct CONFIG_ {
-	TCHAR name[260];
+	int repeat;
 	int straighten;
 } CONFIG;
 static CONFIG config = {
-	TEXT("_%05d"),
+	0,
 	1,
 };
 
 
-//---------------------------------------------------------------------
-//		出力プラグイン出力関数
-//---------------------------------------------------------------------
-//
-//	oip->flag;				// フラグ
-//							// OUTPUT_INFO_FLAG_VIDEO	: 画像データあり
-//							// OUTPUT_INFO_FLAG_AUDIO	: 音声データあり
-//	oip->w,oip->h;			// 縦横サイズ
-//	oip->rate,oip->scale;	// フレームレート
-//	oip->n;					// フレーム数
-//	oip->size;				// １フレームのバイト数
-//	oip->audio_rate;		// 音声サンプリングレート
-//	oip->audio_ch;			// 音声チャンネル数
-//	oip->audio_n;			// 音声サンプリング数
-//	oip->audio_size;		// 音声１サンプルのバイト数
-//	oip->savefile;			// セーブファイル名へのポインタ
-//
-//	void *oip->func_get_video( int frame );
-//							// DIB形式(RGB24bit)の画像データへのポインタを取得します。
-//							// frame	: フレーム番号
-//							// 戻り値	: データへのポインタ
-//	void *oip->func_get_audio( int start,int length,int *readed );
-//							// 16bitPCM形式の音声データへのポインタを取得します。
-//							// start	: 開始サンプル番号
-//							// length	: 読み込むサンプル数
-//							// readed	: 読み込まれたサンプル数
-//							// 戻り値	: データへのポインタ
-//	BOOL oip->func_is_abort( void );
-//							// 中断するか調べます。
-//							// 戻り値	: TRUEなら中断
-//	BOOL oip->func_rest_time_disp( int now,int total );
-//							// 残り時間を表示させます。
-//							// now		: 処理しているフレーム番号
-//							// total	: 処理する総フレーム数
-//							// 戻り値	: TRUEなら成功
-//	int oip->func_get_flag( int frame );
-//							//	フラグを取得します。
-//							//	frame	: フレーム番号
-//							//	戻り値	: フラグ
-//							//  OUTPUT_INFO_FRAME_FLAG_KEYFRAME		: キーフレーム推奨
-//							//  OUTPUT_INFO_FRAME_FLAG_COPYFRAME	: コピーフレーム推奨
-//	BOOL oip->func_update_preview( void );
-//							//	プレビュー画面を更新します。
-//							//	最後にfunc_get_videoで読み込まれたフレームが表示されます。
-//							//	戻り値	: TRUEなら成功
-//
 bool func_output(OUTPUT_INFO *oip) {
-	//oip->func_set_buffer_size(1, 1); // 最小
-	oip->func_set_buffer_size(16, 1); // 多く取る
-
 	int frames = oip->n;
 
-	// バッファのピクセル幅
+	// ピクセル高さ
 	int height = oip->h;
-	// 処理ピクセル幅
+	// ピクセル幅
 	int width = oip->w;
 
 	int rate = oip->rate;
@@ -175,7 +126,7 @@ bool func_output(OUTPUT_INFO *oip) {
 			{
 				int byteNum = 20;
 				writeu32be(buf, 8, frames, LOCALBUF);
-				writeu32be(buf, 12, 0, LOCALBUF); // repeat 数 0 は無限ループ
+				writeu32be(buf, 12, config.repeat, LOCALBUF); // repeat 数 0 は無限ループ
 				makeChunk(buf, 0, byteNum, MAKEFOURCC('a', 'c', 'T', 'L'));
 				WriteFile(fh, buf, byteNum, NULL, NULL);
 			}
@@ -265,10 +216,6 @@ bool func_output(OUTPUT_INFO *oip) {
 
 	GdiplusShutdown(gdiplusToken);
 
-	//if (pChunk) {
-	//	delete[] pChunk;
-	//}
-
 	if (retVal < 0) {
 		return false;
 	}
@@ -280,9 +227,10 @@ bool func_output(OUTPUT_INFO *oip) {
 //		出力プラグイン設定関数
 //---------------------------------------------------------------------
 LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
+	BOOL success = FALSE;
 	switch(umsg) {
 		case WM_INITDIALOG:
-			//SetDlgItemText(hdlg, IDC_EDIT0, config.name);
+			SetDlgItemInt(hdlg, IDC_EDIT0, config.repeat, FALSE);
 
 			if (config.straighten == 0) {
 				CheckDlgButton(hdlg, IDC_CHECK1, BST_UNCHECKED);
@@ -296,7 +244,10 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 					EndDialog(hdlg, LOWORD(wparam));
 					break;
 				case IDOK:
-					//GetDlgItemText(hdlg, IDC_EDIT0, config.name, 260);
+					config.repeat = GetDlgItemInt(hdlg, IDC_EDIT0, &success, FALSE);
+					if (success == FALSE) {
+						config.repeat = 0;
+					}
 
 					if (IsDlgButtonChecked(hdlg, IDC_CHECK1) == BST_CHECKED) {
 						config.straighten = 1;
@@ -345,7 +296,10 @@ int func_config_set(void *data, int size) {
 
 WCHAR gConfigText[STRBUF] = { 0 };
 LPCWSTR func_get_config_text() {
-	StringCchPrintf(gConfigText, STRBUF, TEXT("RGBをAで割る: %d"), config.straighten);
+	StringCchPrintf(gConfigText, STRBUF,
+		TEXT("繰り返し回数: %d, RGBをAで割る: %d"),
+		config.repeat,
+		config.straighten);
 	return gConfigText;
 }
 
@@ -356,7 +310,7 @@ OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	L"APNG出力",			//	プラグインの名前
 	L"PNG File (*.png)\0*.png\0AllFile (*.*)\0*.*\0",		//	出力ファイルのフィルタ
-	L"APNG出力 v0.2.2 by ウサギ",	//	プラグインの情報
+	L"APNG出力 v0.3.1 by ウサギ",	//	プラグインの情報
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_get_config_text,	//	出力設定データを取得する時に呼ばれる関数へのポインタ (NULLなら呼ばれません)

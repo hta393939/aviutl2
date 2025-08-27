@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <strsafe.h>
 #include "../aviutl2_sdk/input2.h"
-#include "liteexr_input.h"
+#include "wavasimage_input.h"
 
 #define STRBUF (4096)
 
@@ -126,9 +126,9 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 //---------------------------------------------------------------------
 INPUT_PLUGIN_TABLE output_plugin_table = {
 	INPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
-	TEXT("簡易EXR入力"),			//	プラグインの名前
-	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
-	TEXT("簡易EXR入力 v0.3.1 by ウサギ"),	//	プラグインの情報
+	TEXT("wav画像入力"),			//	プラグインの名前
+	TEXT("wav File (*.exr)\0*.wav\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
+	TEXT("wav画像入力 v0.3.1 by ウサギ"),	//	プラグインの情報
 	func_open,		//	呼ばれる関数へのポインタ
 	func_close,
 	func_info_get, //
