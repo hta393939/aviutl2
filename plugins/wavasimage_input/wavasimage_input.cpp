@@ -120,12 +120,40 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 	return 0;
 }
 
+int func_set_track(INPUT_HANDLE ih, int type, int index) {
+	switch (type) {
+	case INPUT_PLUGIN_TABLE::TRACK_TYPE_VIDEO:
+		if (index < 0) {
+			return 2;
+		}
+		break;
+	case INPUT_PLUGIN_TABLE::TRACK_TYPE_AUDIO:
+		if (index < 0) {
+			return 2;
+		}
+		break;
+	default:
+		if (index < 0) {
+			return 0;
+		}
+		return -1;
+	}
+	return 0;
+}
+
+int func_time_to_frame(INPUT_HANDLE ih, double time) {
+	return 0;
+}
+
 
 //---------------------------------------------------------------------
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
 INPUT_PLUGIN_TABLE output_plugin_table = {
-	INPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
+	INPUT_PLUGIN_TABLE::FLAG_VIDEO
+		//| INPUT_PLUGIN_TABLE::FLAG_CONCURRENT
+		//| INPUT_PLUGIN_TABLE::FLAG_MULTI_TRACK
+		| INPUT_PLUGIN_TABLE::FLAG_AUDIO, // フラグ
 	TEXT("wav画像入力"),			//	プラグインの名前
 	TEXT("wav File (*.exr)\0*.wav\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
 	TEXT("wav画像入力 v0.3.1 by ウサギ"),	//	プラグインの情報
@@ -135,8 +163,8 @@ INPUT_PLUGIN_TABLE output_plugin_table = {
 	func_read_video, // 
 	NULL, // audio
 	func_config,		//	設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
-	NULL,
-	NULL,
+	func_set_track,
+	func_time_to_frame,
 };
 
 //---------------------------------------------------------------------

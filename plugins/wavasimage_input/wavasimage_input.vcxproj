@@ -19,22 +19,22 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="liteexr_input.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="liteexr_input.def" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\aviutl2_sdk\input2.h" />
-    <ClInclude Include="liteexr_input.h" />
+    <ClInclude Include="wavasimage_input.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="liteexr_input.rc" />
+    <ClCompile Include="wavasimage_input.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="wavasimage_input.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="wavasimage_input.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{3F0BD56C-A9D9-4B54-9ED1-67D36AB4D7AD}</ProjectGuid>
+    <ProjectGuid>{4FA7C157-7440-437C-856D-C3883D90CA7A}</ProjectGuid>
     <RootNamespace>graygifoutput</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -128,7 +128,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;LITEEXR_INPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;WAVASIMAGE_INPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -147,7 +147,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;LITEEXR_INPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;WAVASIMAGE_INPUT_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
