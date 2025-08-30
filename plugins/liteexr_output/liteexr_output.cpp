@@ -502,9 +502,9 @@ LPCWSTR func_get_config_text() {
 //---------------------------------------------------------------------
 OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
-	TEXT("簡易EXR出力"),			//	プラグインの名前
+	TEXT("連番EXR出力"),			//	プラグインの名前
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
-	TEXT("簡易EXR出力 v0.3.1 by ウサギ"),	//	プラグインの情報
+	TEXT("連番EXR出力 v0.4.1 by ウサギ"),	//	プラグインの情報
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_get_config_text,	//	出力設定データを取得する時に呼ばれる関数へのポインタ (NULLなら呼ばれません)

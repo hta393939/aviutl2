@@ -14,12 +14,28 @@ typedef struct CONFIG_ {
 	unsigned int rate;
 	unsigned int scale;
 	int straighten;
+	int audioTrack;
+	int videoTrack;
 } CONFIG;
 static CONFIG config = {
 	TEXT("_%05d"),
 	1,
 	30,
 	1,
+	-1,
+	-1,
+};
+
+struct MY_FILE_HANDLE {
+	int flag;
+	static constexpr int FLAG_VIDEO = 1;
+	static constexpr int FLAG_AUDIO = 2;
+	HANDLE hFile;
+	void* videoformat;
+	LONG videoformatsize;
+	void* audioformat;
+	LONG audioformatsize;
+	int dataTop;
 };
 
 
@@ -75,37 +91,104 @@ WCHAR gConfigText[1024] = {0};
 //}
 
 
-WCHAR gBaseName[STRBUF] = { 0 };
+//WCHAR gBaseName[STRBUF] = { 0 };
 
+// 入力ファイルをクローズする関数へのポインタ
+// ih		: 入力ファイルハンドル
+bool func_close(INPUT_HANDLE ih) {
+	MY_FILE_HANDLE* p = (MY_FILE_HANDLE*)ih;
+	if (p->audioformat) {
+		GlobalFree(p->audioformat);
+	}
+	if (p->videoformat) {
+		GlobalFree(p->videoformat);
+	}
+	if (p->hFile != INVALID_HANDLE_VALUE) {
+		CloseHandle(p->hFile);
+	}
+	GlobalFree(p);
+	return true;
+}
 
 
 // 入力ファイルをオープンする関数へのポインタ
 // file		: ファイル名
 // 戻り値	: TRUEなら入力ファイルハンドル
 INPUT_HANDLE func_open(LPCWSTR file) {
-	StringCchCopy(gBaseName, STRBUF, file);
+	//StringCchCopy(gBaseName, STRBUF, file);
 
-	{
-
+	HANDLE h = GlobalAlloc(GPTR, sizeof(MY_FILE_HANDLE));
+	auto p = (MY_FILE_HANDLE*)h;
+	if (!p) {
+		return NULL;
+	}
+	p->hFile = INVALID_HANDLE_VALUE;
+	p->videoformatsize = sizeof(BITMAPINFOHEADER);
+	p->audioformatsize = sizeof(WAVEFORMATEX);
+	p->videoformat = GlobalAlloc(GPTR, p->videoformatsize);
+	p->audioformat = GlobalAlloc(GPTR, p->audioformatsize);
+	if (!p->videoformat || !p->audioformat) {
+		func_close(p);
+		return NULL;
 	}
 
-	return NULL;
+	{
+		auto pw = (WAVEFORMATEX*)p->audioformat;
+		pw->wFormatTag = 3;
+		pw->nChannels = 1;
+		pw->nSamplesPerSec = 48000;
+		pw->nBlockAlign = 4 * pw->nChannels;
+		pw->nAvgBytesPerSec = pw->nSamplesPerSec * 4 * pw->nChannels;
+		pw->wBitsPerSample = 32;
+		pw->cbSize = 0;
+	}
+	{
+		auto pv = (BITMAPINFOHEADER*)p->videoformat;
+		pv->biSize = sizeof(p->videoformatsize);
+		pv->biWidth = 256;
+		pv->biHeight = 256;
+		pv->biBitCount = 32;
+		pv->biClrUsed = 0;
+		pv->biPlanes = 1;
+		pv->biCompression = 0;
+	}
+
+	p->hFile = CreateFile(file,
+		FILE_GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+	if (p->hFile == INVALID_HANDLE_VALUE) {
+		func_close(p);
+		return NULL;
+	}
+
+	// 未実装
+	// オフセットの検知
+
+	return p;
 }
 
-// 入力ファイルをクローズする関数へのポインタ
-// ih		: 入力ファイルハンドル
-// 戻り値	: TRUEなら成功
-bool func_close(INPUT_HANDLE ih) {
-	GlobalFree(ih);
-	return true;
-}
 
 // 入力ファイルの情報を取得する関数へのポインタ
 // ih		: 入力ファイルハンドル
 // iip		: 入力ファイル情報構造体へのポインタ
 // 戻り値	: TRUEなら成功
 bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
-	return false;
+	auto p = (MY_FILE_HANDLE*)ih;
+	iip->flag = INPUT_INFO::FLAG_VIDEO | INPUT_INFO::FLAG_AUDIO;
+	iip->rate = 30;
+	iip->scale = 1;
+	iip->n = 120;
+	iip->audio_n = 120 * 48000;
+	// ポインタ伝達でいいのか?
+	iip->audio_format = (WAVEFORMATEX*)p->audioformat;
+	iip->audio_format_size = p->audioformatsize;
+	iip->format = (BITMAPINFOHEADER*)p->videoformat;
+	iip->format_size = p->videoformatsize;
+	return true;
 }
 
 // 画像データを読み込む関数へのポインタ
@@ -114,10 +197,49 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 // buf		: データを読み込むバッファへのポインタ
 // 戻り値	: 読み込んだデータサイズ
 int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
+	auto p = (MY_FILE_HANDLE*)ih;
+	//int pxNum = p->videoformat;
+	int width = 256;
+	int height = 256;
+	int pxNum = width * height;
 	{
-
+		auto p32 = (unsigned int*)buf;
+		for (int y = 0; y < height; ++y) {
+			for (int x = 0; x < width; ++x) {
+				*p32 = 0xffffffff;
+				++p32;
+			}
+		}
 	}
-	return 0;
+	return pxNum * 4;
+}
+
+int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
+	auto p = (MY_FILE_HANDLE*)ih;
+	int chNum = 1;
+	int elementSize = 2;
+	float* dst = (float*)buf;
+	if (true) {
+		elementSize = 2;
+		short* src = (short*)nullptr + config.audioTrack;
+		for (int i = 0; i < length; ++i) {
+			//float val = *src;
+			float val = 0.5f;
+			*dst = val / 32768.0f;
+			++src;
+			++dst;
+		}
+	}
+	else {
+		elementSize = 4;
+		float* src = (float*)nullptr + config.audioTrack;
+		for (int i = 0; i < length; ++i) {
+			*dst = *src;
+			src += chNum;
+			++dst;
+		}
+	}
+	return length * elementSize;
 }
 
 int func_set_track(INPUT_HANDLE ih, int type, int index) {
@@ -126,11 +248,19 @@ int func_set_track(INPUT_HANDLE ih, int type, int index) {
 		if (index < 0) {
 			return 2;
 		}
+		if (index >= 2) {
+			return -1;
+		}
+		config.videoTrack = index;
 		break;
 	case INPUT_PLUGIN_TABLE::TRACK_TYPE_AUDIO:
 		if (index < 0) {
 			return 2;
 		}
+		if (index >= 2) {
+			return -1;
+		}
+		config.audioTrack = index;
 		break;
 	default:
 		if (index < 0) {
@@ -149,7 +279,7 @@ int func_time_to_frame(INPUT_HANDLE ih, double time) {
 //---------------------------------------------------------------------
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
-INPUT_PLUGIN_TABLE output_plugin_table = {
+INPUT_PLUGIN_TABLE input_plugin_table = {
 	INPUT_PLUGIN_TABLE::FLAG_VIDEO
 		//| INPUT_PLUGIN_TABLE::FLAG_CONCURRENT
 		//| INPUT_PLUGIN_TABLE::FLAG_MULTI_TRACK
@@ -161,15 +291,15 @@ INPUT_PLUGIN_TABLE output_plugin_table = {
 	func_close,
 	func_info_get, //
 	func_read_video, // 
-	NULL, // audio
+	func_read_audio, // audio
 	func_config,		//	設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_set_track,
-	func_time_to_frame,
+	NULL, //func_time_to_frame,
 };
 
 //---------------------------------------------------------------------
 //		出力プラグイン構造体のポインタを渡す関数
 //---------------------------------------------------------------------
-EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetOutputPluginTable(void) {
-	return &output_plugin_table;
+EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTable(void) {
+	return &input_plugin_table;
 }

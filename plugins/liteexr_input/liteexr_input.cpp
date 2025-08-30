@@ -124,7 +124,7 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 //---------------------------------------------------------------------
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
-INPUT_PLUGIN_TABLE output_plugin_table = {
+INPUT_PLUGIN_TABLE input_plugin_table = {
 	INPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	TEXT("簡易EXR入力"),			//	プラグインの名前
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
@@ -142,6 +142,6 @@ INPUT_PLUGIN_TABLE output_plugin_table = {
 //---------------------------------------------------------------------
 //		出力プラグイン構造体のポインタを渡す関数
 //---------------------------------------------------------------------
-EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetOutputPluginTable(void) {
-	return &output_plugin_table;
+EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTable(void) {
+	return &input_plugin_table;
 }

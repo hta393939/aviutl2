@@ -1,2 +1,2 @@
 ﻿EXPORTS
-	GetOutputPluginTable @1
+	GetInputPluginTable @1
