@@ -1,4 +1,4 @@
-
+ï»¿
 #include <windows.h>
 
 struct SEQSEP {
@@ -12,7 +12,7 @@ struct SEQSEP {
 
 typedef unsigned short _u16;
 
-// w”ƒe[ƒuƒ‹
+// æŒ‡æ•°ãƒ†ãƒ¼ãƒ–ãƒ«
 float _gk2[32];
 
 void _makeTable() {
@@ -31,11 +31,11 @@ float _u16tof(unsigned short u16) {
 	int signBit = (u16 & 0x8000) ? 0x80000000 : 0;
 	int biased = (int)((u16 >> 10) & 0x1f);
 	int bits = (int)(u16 & 0x3ff); // 10bit
-	if (biased == 0) { // ƒPƒ`•\Œ»
+	if (biased == 0) { // ã‚±ãƒè¡¨ç¾
 		return (signBit ? -1.0f : 1.0f) * _gk2[0] * (float)bits;
 	}
 
-	if (biased == 31) { // –³ŒÀ‘å‚Ü‚½‚ÍNaN. 8bit exp
+	if (biased == 31) { // ç„¡é™å¤§ã¾ãŸã¯NaN. 8bit exp
 		unsigned int buf = 0x7f800000 | signBit | (bits << 13);
 		float* p = (float*)&buf;
 		return (*p);
@@ -71,22 +71,22 @@ unsigned short _ftob16(float v) {
 		return ret;
 	}
 
-	// -15(halfƒPƒ`), -14, 0, +14, +15, +16(half‚Å‚Í–³ŒÀ‘å‚©NaN)
+	// -15(halfã‚±ãƒ), -14, 0, +14, +15, +16(halfã§ã¯ç„¡é™å¤§ã‹NaN)
 	if (exp2 > 15) {
-		ret |= (30 << 10) | 0x03ff; // half16‚ÌÅ‘å’l
+		ret |= (30 << 10) | 0x03ff; // half16ã®æœ€å¤§å€¤
 		return ret;
 	}
 	if (exp2 < -14) {
-		frac |= 0x800000; // 23ŒÂ‚æ‚è1‚Âã
+		frac |= 0x800000; // 23å€‹ã‚ˆã‚Š1ã¤ä¸Š
 		frac >>= -1 - exp2;
 		if (frac == 0) {
-			frac = 1; // Å¬‚ÉØ‚èã‚°
+			frac = 1; // æœ€å°ã«åˆ‡ã‚Šä¸Šã’
 		}
 		ret |= frac;
 		return ret;
 	}
 
-	frac >>= 13; // 10bit‚¾‚¯c‚·
+	frac >>= 13; // 10bitã ã‘æ®‹ã™
 	ret |= (_u16)frac;
 	ret |= (_u16)(bias16 << 10);
 	return ret;
@@ -151,7 +151,7 @@ int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 
 
 int _getModuleDir(HMODULE hModule, TCHAR* dst, int maxNum) {
-	// null ‚ğŠÜ‚Ü‚È‚¢ŒÂ”‚ª•Ô‚é
+	// null ã‚’å«ã¾ãªã„å€‹æ•°ãŒè¿”ã‚‹
 	auto num = GetModuleFileName(hModule, dst, maxNum);
 	for (int i = num - 1; i >= 0; --i) {
 		auto val = dst[i];
