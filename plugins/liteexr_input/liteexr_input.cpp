@@ -3,8 +3,11 @@
 #include <strsafe.h>
 #include "../aviutl2_sdk/input2.h"
 #include "liteexr_input.h"
+#include "../lib/util.hpp"
 
 #define STRBUF (4096)
+
+#define APPNAME "liteexr_input"
 
 //---------------------------------------------------------------------
 //		プラグイン内部変数
@@ -21,6 +24,34 @@ static CONFIG config = {
 	30,
 	1,
 };
+
+SEQSEP gSeqSep = { nullptr, nullptr, nullptr, nullptr, 0, 0 };
+
+/// <summary>
+/// 当面無理
+/// </summary>
+/// <returns></returns>
+int parseExr() {
+	return -1;
+}
+
+
+int saveSetting(CONFIG* src) {
+	TCHAR buf[STRBUF];
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("rate"), buf, nullptr);
+
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("scale"), buf, nullptr);
+	return 1;
+}
+
+int loadSetting(CONFIG* dst) {
+	dst->rate = GetPrivateProfileInt(TEXT(APPNAME), TEXT("rate"), 30, nullptr);
+	dst->scale = GetPrivateProfileInt(TEXT(APPNAME), TEXT("scale"), 1, nullptr);
+	return 1;
+}
+
 
 
 //---------------------------------------------------------------------
@@ -85,7 +116,11 @@ WCHAR gBaseName[STRBUF] = { 0 };
 INPUT_HANDLE func_open(LPCWSTR file) {
 	StringCchCopy(gBaseName, STRBUF, file);
 
-	{
+	_parseSeqSep((TCHAR*)file, &gSeqSep);
+	if (gSeqSep.count >= 1) { // 連番検知した
+
+	}
+	else { // 1枚だけ
 
 	}
 
@@ -126,9 +161,9 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 //---------------------------------------------------------------------
 INPUT_PLUGIN_TABLE input_plugin_table = {
 	INPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
-	TEXT("簡易EXR入力"),			//	プラグインの名前
+	TEXT("連番EXR入力"),			//	プラグインの名前
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
-	TEXT("簡易EXR入力 v0.3.1 by ウサギ"),	//	プラグインの情報
+	TEXT("連番EXR入力 v0.3.1 by ウサギ"),	//	プラグインの情報
 	func_open,		//	呼ばれる関数へのポインタ
 	func_close,
 	func_info_get, //
