@@ -3,10 +3,12 @@
 
 struct SEQSEP {
 	TCHAR* pstart;
-	TCHAR* phead;
-	TCHAR* ptail;
-	TCHAR* pdext;
+	int head;
+	int tail;
+	int dext;
+	// 桁数
 	int count;
+	// カウンタの開始数
 	int begin;
 };
 
@@ -95,9 +97,9 @@ unsigned short _ftob16(float v) {
 
 int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 	dst->pstart = file;
-	dst->phead = nullptr;
-	dst->ptail = nullptr;
-	dst->pdext = nullptr;
+	dst->head = -1;
+	dst->tail = -1;
+	dst->dext = -1;
 	dst->count = 0;
 	dst->begin = 0;
 	
@@ -114,35 +116,35 @@ int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 		if (val == '/' || val == '\\') {
 			break;
 		}
-		if (!dst->pdext) {
+		if (dst->dext < 0) {
 			if (val == '.') {
-				dst->pdext = dst->pstart + offset;
+				dst->dext = offset;
 			}
 		}
-		else if (!dst->ptail) {
+		else if (dst->tail < 0) {
 			if (0x30 <= val && val <= 0x39) {
-				dst->ptail = dst->pstart + offset;
-				dst->phead = dst->ptail;
+				dst->tail = offset;
+				dst->head = dst->tail;
 			}
 		}
 		else {
 			if (0x30 <= val && val <= 0x39) {
-				dst->phead = dst->pstart + offset;
+				dst->head = offset;
 			}
 			else {
 				break;
 			}
 		}
 	}
-	if (dst->phead) {
-		dst->count = ((int)dst->ptail) - ((int)dst->phead) + 1;
+	if (dst->head >= 0) {
+		dst->count = dst->tail - dst->head + 1;
 		int adjust = dst->count - 9;
 		if (adjust > 0) {
-			dst->phead += adjust;
+			dst->head += adjust;
 			dst->count = 9;
 		}
 		for (int i = 0; i < dst->count; ++i) {
-			dst->begin = dst->begin * 10 + (dst->phead[i] - 0x30);
+			dst->begin = dst->begin * 10 + (dst->pstart[dst->head + i] - 0x30);
 		}
 	}
 

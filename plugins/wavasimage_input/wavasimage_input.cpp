@@ -3,9 +3,12 @@
 #include <strsafe.h>
 #include "../aviutl2_sdk/input2.h"
 #include "wavasimage_input.h"
+#include "../lib/util.hpp"
 
 #define SINGLE_CHANNEL (0)
 #define TWO_CHANNEL (1)
+
+#define APP_NAME "wavasimage"
 
 #define STRBUF (4096)
 
@@ -52,6 +55,44 @@ struct MY_FILE_HANDLE {
 	int maxBufferByte;
 };
 
+TCHAR gDir[STRBUF] = { 0 };
+TCHAR gIni[STRBUF] = { 0 };
+
+int resolvePath(HMODULE hModule) {
+	auto len = GetModuleFileName(hModule, gDir, STRBUF);
+	bool found = false;
+	for (int i = len - 1; i >= 0; --i) {
+		auto val = gDir[i];
+		if (val == '/' || val == '\\') {
+			gDir[i] = 0;
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		return -1;
+	}
+
+	StringCchPrintf(gIni, STRBUF, TEXT("%s/%s.ini"), gDir, TEXT(APP_NAME));
+	return 1;
+}
+
+int saveSettng(CONFIG* src) {
+	TCHAR buf[STRBUF];
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
+	WritePrivateProfileString(TEXT(APP_NAME), TEXT("rate"), buf, gIni);
+
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
+	WritePrivateProfileString(TEXT(APP_NAME), TEXT("scale"), buf, gIni);
+	return 0;
+}
+
+int loadSetting(CONFIG* dst) {
+	dst->rate = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("rate"), 30, gIni);
+	dst->scale = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), 1, gIni);
+	return 0;
+}
+
 
 //---------------------------------------------------------------------
 //		プラグイン設定関数
@@ -59,6 +100,8 @@ struct MY_FILE_HANDLE {
 LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
 	switch(umsg) {
 		case WM_INITDIALOG:
+			loadSetting(&config);
+
 			//SetDlgItemText(hdlg,IDC_EDIT0, config.name);
 			SetDlgItemInt(hdlg, IDC_EDIT0, config.rate, FALSE);
 			SetDlgItemInt(hdlg, IDC_EDIT1, config.scale, FALSE);
@@ -85,6 +128,8 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 						config.straighten = 0;
 					}
 					EndDialog(hdlg, LOWORD(wparam));
+
+					saveSettng(&config);
 					break;
 			}
 			break;
@@ -97,8 +142,6 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 	return true;
 }
 
-
-WCHAR gConfigText[1024] = {0};
 //LPCWSTR func_get_config_text() {
 //	StringCchPrintf(gConfigText, 1024, TEXT("連番追加書式: %s, RGBをAで割る: %d"), config.name, config.straighten);
 //	return gConfigText;
@@ -599,3 +642,16 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTable(void) {
 	return &input_plugin_table;
 }
+
+
+int WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+	switch (fdwReason) {
+	case DLL_PROCESS_ATTACH:
+		resolvePath(hinstDLL);
+		break;
+	default:
+		break;
+	}
+	return TRUE;
+}
+

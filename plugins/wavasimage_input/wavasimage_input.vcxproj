@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\aviutl2_sdk\input2.h" />
+    <ClInclude Include="..\lib\util.hpp" />
     <ClInclude Include="wavasimage_input.h" />
   </ItemGroup>
   <ItemGroup>
