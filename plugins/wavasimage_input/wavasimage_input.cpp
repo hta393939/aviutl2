@@ -19,6 +19,7 @@ typedef struct CONFIG_ {
 	TCHAR name[260];
 	unsigned int rate;
 	unsigned int scale;
+	unsigned int count;
 	int straighten;
 	int audioTrack;
 	int videoTrack;
@@ -27,6 +28,7 @@ static CONFIG config = {
 	TEXT("_%05d"),
 	1,
 	30,
+	50,
 	1,
 	0,
 	0,
@@ -56,41 +58,81 @@ struct MY_FILE_HANDLE {
 };
 
 TCHAR gDir[STRBUF] = { 0 };
+// .au*2 を外した分
+TCHAR gBase[STRBUF] = { 0 };
 TCHAR gIni[STRBUF] = { 0 };
 
 int resolvePath(HMODULE hModule) {
 	auto len = GetModuleFileName(hModule, gDir, STRBUF);
 	bool found = false;
+	int offset = -1;
 	for (int i = len - 1; i >= 0; --i) {
 		auto val = gDir[i];
-		if (val == '/' || val == '\\') {
-			gDir[i] = 0;
-			found = true;
-			break;
+		if (offset < 0) {
+			if (val == '.') {
+				gDir[i] = 0;
+				offset = i;
+				StringCchCopy(gBase, STRBUF, gDir);
+			}
+		}
+		else {
+			if (val == '/' || val == '\\') {
+				gDir[i] = 0;
+				found = true;
+				break;
+			}
 		}
 	}
 	if (!found) {
 		return -1;
 	}
-
 	StringCchPrintf(gIni, STRBUF, TEXT("%s/%s.ini"), gDir, TEXT(APP_NAME));
 	return 1;
 }
 
-int saveSettng(CONFIG* src) {
-	TCHAR buf[STRBUF];
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
-	WritePrivateProfileString(TEXT(APP_NAME), TEXT("rate"), buf, gIni);
-
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
-	WritePrivateProfileString(TEXT(APP_NAME), TEXT("scale"), buf, gIni);
-	return 0;
+int resolveIni(const TCHAR* src, TCHAR* dst, int maxNum) {
+	StringCchCopy(dst, maxNum, src);
+	int len = 0;
+	for (int i = 0; i < maxNum; ++i) {
+		if (dst[i] == 0) {
+			len = i;
+			break;
+		}
+	}
+	for (int i = len - 1; i >= 0; --i) {
+		auto val = dst[i];
+		if (val == '.') {
+			StringCchCopy(dst + i, STRBUF - i - 1, TEXT(".ini"));
+			return 1;
+		}
+	}
+	return -1;
 }
 
-int loadSetting(CONFIG* dst) {
-	dst->rate = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("rate"), 30, gIni);
-	dst->scale = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), 1, gIni);
-	return 0;
+int saveSetting(const CONFIG* src, const TCHAR* target) {
+	TCHAR buf[STRBUF];
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
+	WritePrivateProfileString(TEXT(APP_NAME), TEXT("rate"), buf, target);
+
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
+	WritePrivateProfileString(TEXT(APP_NAME), TEXT("scale"), buf, target);
+
+	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->count);
+	WritePrivateProfileString(TEXT(APP_NAME), TEXT("count"), buf, target);
+	return 1;
+}
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="dst">格納済み値はデフォルト値とする</param>
+/// <param name="target"></param>
+/// <returns></returns>
+int loadSetting(CONFIG* dst, const TCHAR* target) {
+	dst->rate = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("rate"), dst->rate, target);
+	dst->scale = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->scale, target);
+	dst->count = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->count, target);
+	return 1;
 }
 
 
@@ -100,7 +142,7 @@ int loadSetting(CONFIG* dst) {
 LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
 	switch(umsg) {
 		case WM_INITDIALOG:
-			loadSetting(&config);
+			loadSetting(&config, gIni);
 
 			//SetDlgItemText(hdlg,IDC_EDIT0, config.name);
 			SetDlgItemInt(hdlg, IDC_EDIT0, config.rate, FALSE);
@@ -129,7 +171,7 @@ LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lp
 					}
 					EndDialog(hdlg, LOWORD(wparam));
 
-					saveSettng(&config);
+					saveSetting(&config, gIni);
 					break;
 			}
 			break;
@@ -141,14 +183,6 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 	DialogBox(dll_hinst, TEXT("CONFIG"), hwnd, (DLGPROC)func_config_proc);
 	return true;
 }
-
-//LPCWSTR func_get_config_text() {
-//	StringCchPrintf(gConfigText, 1024, TEXT("連番追加書式: %s, RGBをAで割る: %d"), config.name, config.straighten);
-//	return gConfigText;
-//}
-
-
-//WCHAR gBaseName[STRBUF] = { 0 };
 
 // 入力ファイルをクローズする関数へのポインタ
 // ih		: 入力ファイルハンドル
@@ -180,6 +214,13 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	if (!p) {
 		return NULL;
 	}
+
+	TCHAR fileIni[STRBUF] = { 0 };
+	resolveIni(file, fileIni, STRBUF);
+	loadSetting(&config, gIni);
+	loadSetting(&config, fileIni);
+	saveSetting(&config, fileIni);
+
 	p->hFile = INVALID_HANDLE_VALUE;
 	p->videoformatsize = sizeof(BITMAPINFOHEADER);
 	p->audioformatsize = sizeof(WAVEFORMATEX);
@@ -191,7 +232,6 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		func_close(p);
 		return NULL;
 	}
-
 
 	{
 		auto pv = (BITMAPINFOHEADER*)p->videoformat;
@@ -254,7 +294,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 	p->fileNumChannel = pfh->nChannels;
-	p->elementSize = (pfh->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ? 4 : (pfh->wBitsPerSample / 8);
+	p->elementSize = (pfh->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ? 4 : ((pfh->wBitsPerSample + 7) / 8);
 
 	// 書き出しはfloatとする
 	pa->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
@@ -275,8 +315,8 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 	auto p = (MY_FILE_HANDLE*)ih;
 	auto pa = (WAVEFORMATEX*)p->audioformat;
 	iip->flag = INPUT_INFO::FLAG_VIDEO | INPUT_INFO::FLAG_AUDIO;
-	iip->rate = 30;
-	iip->scale = 1;
+	iip->rate = config.rate;
+	iip->scale = config.scale;
 	int denom = pa->nSamplesPerSec * iip->scale;
 	iip->n = (p->lengthBySample * iip->rate + denom - 1) / denom;
 	iip->audio_n = p->lengthBySample;
@@ -297,8 +337,8 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	const int readBlockByte = chNum * p->elementSize;
 
 	// サンプル単位時刻での開始時刻
-	const int ratev = 30;
-	const int scalev = 1;
+	const int ratev = config.rate;
+	const int scalev = config.scale;
 	const int ratea = pa->nSamplesPerSec;
 	int timestart = (frame - 4) * ratea * scalev / ratev;
 	// サンプル要求長さ
@@ -350,7 +390,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		int count = 0;
 		int dx = 0;
 		for (int x = 0; x < realLength; ++x) {
-			if (count == 16) {
+			if (count >= config.count) {
 				if (minVal <= maxVal) {
 					// ドット打ち
 					int top = (int)((1.0f - maxVal) * 32.0f + 0.5f);
@@ -478,7 +518,7 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 	auto ph = (WAVEFORMATEX*)p->audioformat;
 	const int chNum = ph->nChannels;
 	const int chIndex = config.audioTrack / 2;
-	const int writeIndex = config.audioTrack % 2;
+	const int writeIndex = chIndex % 2;
 	float* dst = (float*)buf;
 	int sampleNum = 0;
 
@@ -518,16 +558,16 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 	else if (p->elementSize == 1) { // 未確認
 		int byteOffset = chIndex;
 		for (int i = 0; i < realLength; ++i) {
-			char val = 0;
+			unsigned char val = 0;
 			CopyMemory(&val, ((unsigned char*)p->buffer) + byteOffset, 1);
-			float fval = ((float)val) / 128.0f;
+			float fval = (((float)val) - 128.0f) / 128.0f;
 #if (SINGLE_CHANNEL!=0)
 			*dst = fval;
 			++dst;
 			++sampleNum;
 #else
 			dst[0] = 0.0f;
-			dst[1] = 0.0;
+			dst[1] = 0.0f;
 			dst[writeIndex] = fval;
 			dst += 2;
 			sampleNum += 2;
@@ -557,7 +597,7 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			byteOffset += chNum * 3;
 		}
 	}
-	else {
+	else { // float 扱い
 		float* psrc = ((float*)p->buffer) + chIndex;
 		for (int i = 0; i < realLength; ++i) {
 			float val = *psrc;
@@ -644,10 +684,12 @@ EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTabl
 }
 
 
-int WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+EXTERN_C BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
 	switch (fdwReason) {
 	case DLL_PROCESS_ATTACH:
 		resolvePath(hinstDLL);
+		loadSetting(&config, gIni);
+		saveSetting(&config, gIni);
 		break;
 	default:
 		break;
