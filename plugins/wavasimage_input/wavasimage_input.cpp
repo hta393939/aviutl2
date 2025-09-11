@@ -8,7 +8,7 @@
 #define SINGLE_CHANNEL (0)
 #define TWO_CHANNEL (1)
 
-#define APP_NAME "wavasimage"
+#define APP_NAME "wavasimage_input"
 
 #define STRBUF (4096)
 
@@ -26,8 +26,8 @@ typedef struct CONFIG_ {
 } CONFIG;
 static CONFIG config = {
 	TEXT("_%05d"),
-	1,
 	30,
+	1,
 	50,
 	1,
 	0,
