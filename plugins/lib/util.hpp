@@ -1,10 +1,17 @@
 ﻿
 #include <windows.h>
 
+/// <summary>
+/// 連番ファイル群の先頭ファイルをパースした結果
+/// </summary>
 struct SEQSEP {
+	// 先頭ポインタ(参照のみ)
 	TCHAR* pstart;
+	// パース用のオフセット(長すぎる場合は補正後)
 	int head;
+	// パース用のオフセット
 	int tail;
+	// 後ろから探して最初のドット
 	int dext;
 	// 桁数
 	int count;
@@ -96,6 +103,9 @@ unsigned short _ftob16(float v) {
 
 
 int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
+	if (!file || !dst) {
+		return -1;
+	}
 	dst->pstart = file;
 	dst->head = -1;
 	dst->tail = -1;
@@ -152,6 +162,13 @@ int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 }
 
 
+/// <summary>
+/// hModuleから解決するファイルを含むフォルダ名を得る
+/// </summary>
+/// <param name="hModule"></param>
+/// <param name="dst">書き出し先</param>
+/// <param name="maxNum">最大個数</param>
+/// <returns>nullを含まない個数</returns>
 int _getModuleDir(HMODULE hModule, TCHAR* dst, int maxNum) {
 	// null を含まない個数が返る
 	auto num = GetModuleFileName(hModule, dst, maxNum);

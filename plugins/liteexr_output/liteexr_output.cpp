@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <strsafe.h>
 #include "../aviutl2_sdk/output2.h"
+#include "../lib/util.hpp"
 #include "liteexr_output.h"
 
 #define STRBUF (4096)
@@ -12,7 +13,7 @@ typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
-
+/*
 // 指数テーブル
 float gk2[32];
 
@@ -92,7 +93,7 @@ unsigned short ftob16(float v) {
 	ret |= (u16)(bias16 << 10);
 	return ret;
 }
-
+*/
 
 
 //---------------------------------------------------------------------
@@ -322,7 +323,7 @@ int makeExr(
 			{ // A
 				auto p = pTop;
 				for (int x = 0; x < width; ++x) {
-					float a = u16tof(p[3]);
+					float a = _u16tof(p[3]);
 					WriteFile(fh, &a, elemSize, NULL, NULL);
 					p += 4;
 				}
@@ -331,9 +332,9 @@ int makeExr(
 				int index = toIndex[j];
 				auto p = pTop;
 				for (int x = 0; x < width; ++x) {
-					float a = u16tof(p[3]);
+					float a = _u16tof(p[3]);
 					float k = (straighten && a != 0.0f) ? 1.0f / a : 1.0f;
-					float val = u16tof(p[index]) * k;
+					float val = _u16tof(p[index]) * k;
 					WriteFile(fh, &val, elemSize, NULL, NULL);
 
 					p += 4;
@@ -355,11 +356,11 @@ int makeExr(
 					int index = toIndex[j];
 					auto p = pTop;
 					for (int x = 0; x < width; ++x) {
-						float a = u16tof(p[3]);
+						float a = _u16tof(p[3]);
 						if (a != 1.0f && a != 0.0f) {
 							float k = 1.0f / a;
-							float val = u16tof(p[index]) * k;
-							u16 val16 = ftob16(val);
+							float val = _u16tof(p[index]) * k;
+							u16 val16 = _ftob16(val);
 							WriteFile(fh, &val16, elemSize, NULL, NULL);
 						}
 						else {
@@ -425,7 +426,7 @@ bool func_output(OUTPUT_INFO *oip) {
 	*p3 = 0;
 	StringCchCopy(name, 260, p2);
 
-	makeTable();
+	_makeTable();
 
 	auto fourCC = MAKEFOURCC('H', 'F', '6', '4');
 	for(i = 0; i < frames; ++i) {
@@ -504,7 +505,7 @@ OUTPUT_PLUGIN_TABLE output_plugin_table = {
 	OUTPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
 	TEXT("連番EXR出力"),			//	プラグインの名前
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	出力ファイルのフィルタ
-	TEXT("連番EXR出力 v0.4.1 by ウサギ"),	//	プラグインの情報
+	TEXT("連番EXR出力 v0.4.2 by ウサギ"),	//	プラグインの情報
 	func_output,		//	出力時に呼ばれる関数へのポインタ
 	func_config,		//	出力設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_get_config_text,	//	出力設定データを取得する時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
