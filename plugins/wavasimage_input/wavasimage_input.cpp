@@ -12,6 +12,9 @@
 
 #define STRBUF (4096)
 
+// 一つ分の高さピクセル数
+#define BELT_HEIGHT (64)
+
 //---------------------------------------------------------------------
 //		プラグイン内部変数
 //---------------------------------------------------------------------
@@ -237,7 +240,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		auto pv = (BITMAPINFOHEADER*)p->videoformat;
 		pv->biSize = sizeof(p->videoformatsize);
 		pv->biWidth = 1024;
-		pv->biHeight = 64;
+		pv->biHeight = BELT_HEIGHT * 2;
 		pv->biBitCount = 32;
 		pv->biClrUsed = 0;
 		pv->biPlanes = 1;
@@ -256,28 +259,53 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 
-	// JUNKチャンクには対応しない
 	// オフセットの検知
 	int offset = 0;
-	auto result = ReadFile(p->hFile, p->head, 48, NULL, NULL);
-	if (result == FALSE) {
+	DWORD data[2];
+	DWORD dwRead = 0;
+	BOOL result = ReadFile(p->hFile, data, 8, &dwRead, NULL);
+	offset += 8;
+	if (!result || dwRead != 8 || data[0] != MAKEFOURCC('R', 'I', 'F', 'F')) {
 		func_close(p);
 		return NULL;
 	}
-	DWORD* p32 = (DWORD*)p->head;
-	if (p32[0] != MAKEFOURCC('R', 'I', 'F', 'F') || p32[2] != MAKEFOURCC('W','A','V','E')) {
-		func_close(p);
-		return NULL;
-	}
-	// PCM時
-	if (p32[3] != MAKEFOURCC('f','m','t',' ') || p32[9] != MAKEFOURCC('d', 'a', 't', 'a')) {
-		func_close(p);
-		return NULL;
-	}
-	p->byteData = p32[10];
-	p->indataStart = 44;
 
-	auto pfh = (WAVEFORMATEX*)(p->head + 20);
+	result = ReadFile(p->hFile, data, 4, &dwRead, NULL);
+	offset += 4;
+	if (!result || dwRead != 4 || data[0] != MAKEFOURCC('W', 'A', 'V', 'E')) {
+		func_close(p);
+		return NULL;
+	}
+
+	while (true) {
+		result = ReadFile(p->hFile, data, 8, &dwRead, NULL);
+		offset += 8;
+		if (!result || dwRead != 8) {
+			func_close(p);
+			return NULL;
+		}
+
+		if (data[0] == MAKEFOURCC('f', 'm', 't', ' ')) {
+			result = ReadFile(p->hFile, p->head, data[1], &dwRead, NULL);
+			if (!result || dwRead != data[1]) {
+				func_close(p);
+				return NULL;
+			}
+			offset += dwRead;
+		}
+		else if (data[0] == MAKEFOURCC('d', 'a', 't', 'a')) {
+			p->byteData = data[1];
+			p->indataStart = offset;
+			break;
+		}
+		else {
+			SetFilePointer(p->hFile, data[1], NULL, FILE_CURRENT);
+			offset += dwRead;
+		}
+
+	}
+
+	auto pfh = (WAVEFORMATEX*)p->head;
 	auto pa = (WAVEFORMATEX*)p->audioformat;
 #if (SINGLE_CHANNEL != 0)
 	pa->nChannels = 1;
@@ -328,13 +356,22 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 	return true;
 }
 
+/// <summary>
+/// ビデオ
+/// </summary>
+/// <param name="p"></param>
+/// <param name="frame"></param>
+/// <param name="buf"></param>
+/// <returns></returns>
 int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	auto pv = (BITMAPINFOHEADER*)p->videoformat;
 	auto pa = (WAVEFORMATEX*)p->audioformat;
-	const int chIndex = config.audioTrack / 2;
-	const int writeIndex = config.audioTrack % 2;
+	const int chIndex = config.audioTrack;
+	const int writeIndex = chIndex % 2;
 	const int fileChNum = p->fileNumChannel;
 	const int readBlockByte = fileChNum * p->elementSize;
+
+	ZeroMemory(buf, pv->biWidth * pv->biHeight * 4);
 
 	// サンプル単位時刻での開始時刻
 	const int ratev = config.rate;
@@ -378,7 +415,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	int byteNum = pxNum * 4;
 	DWORD opaque = 0xff3fff3f;
 	DWORD empty = 0xff3f3f3f; // 上からARGB
-	ZeroMemory(buf, byteNum);
 	{
 		if (config.videoTrack) {
 			opaque = 0x80ffffff;
@@ -509,10 +545,10 @@ int makeData(MY_FILE_HANDLE* p, int frame, void* buf) {
 // 戻り値	: 読み込んだデータサイズ
 int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 	auto p = (MY_FILE_HANDLE*)ih;
-	if ((config.videoTrack % 2) == 0) {
+//	if ((config.videoTrack % 2) == 0) {
 		return makeView(p, frame, buf);
-	}
-	return makeData(p, frame, buf);
+//	}
+//	return makeData(p, frame, buf);
 }
 
 int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
@@ -627,9 +663,9 @@ int func_set_track(INPUT_HANDLE ih, int type, int index) {
 	switch (type) {
 	case INPUT_PLUGIN_TABLE::TRACK_TYPE_VIDEO:
 		if (index < 0) {
-			return numCh * 2;
+			return numCh;
 		}
-		if (index >= numCh * 2) {
+		if (index >= numCh) {
 			return -1;
 		}
 		config.videoTrack = index;
