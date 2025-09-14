@@ -13,7 +13,9 @@
 #define STRBUF (4096)
 
 // 一つ分の高さピクセル数
-#define BELT_HEIGHT (64)
+#define BELT_HEIGHT (128)
+// 振幅描画部分の高さ
+#define INBELT_HEIGHT (64)
 
 //---------------------------------------------------------------------
 //		プラグイン内部変数
@@ -31,7 +33,7 @@ static CONFIG config = {
 	TEXT("_%05d"),
 	30,
 	1,
-	50,
+	100,
 	1,
 	0,
 	0,
@@ -504,14 +506,9 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 					int top = (int)((1.0f - maxVal) * 32.0f + 0.5f);
 					int bottom = (int)((1.0f - minVal) * 32.0f + 0.5f);
 
-					for (int y = 0; y < BELT_HEIGHT; ++y) {
-						p32 = ((DWORD*)buf) + width * (height - 1 - y) + dx;
-						if (top <= y && y <= bottom) {
-							*p32 = opaque;
-						}
-						else {
-							*p32 = empty;
-						}
+					for (int y = 0; y < INBELT_HEIGHT; ++y) {
+						p32 = ((DWORD*)buf) + width * (height - 1 - (y + BELT_HEIGHT / 2)) + dx;
+						*p32 = (top <= y && y <= bottom) ? opaque : empty;
 					}
 				}
 				dx += 1;
