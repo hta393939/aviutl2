@@ -429,7 +429,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	if (resultbuf == FALSE) {
 		return 0;
 	}
-	// filestart から実際に有効なチック数
+	// filestart からバッファ中で実際に有効なチック数
 	int realLength = read / readBlockByte;
 	{
 		DWORD* p32;
@@ -482,9 +482,8 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 
 				{ // データ描画
 					// TODO: オフセットを正しく計算する
-
 					int dx = i % width;
-					int dy = i / width + BELT_HEIGHT + BELT_HEIGHT / 2;
+					int dy = i / width + BELT_HEIGHT;
 					if (dy < height) {
 						auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
 						DWORD b = (fval < 0.0) ? 192 : 255;
@@ -507,7 +506,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 					int bottom = (int)((1.0f - minVal) * 32.0f + 0.5f);
 
 					for (int y = 0; y < INBELT_HEIGHT; ++y) {
-						p32 = ((DWORD*)buf) + width * (height - 1 - (y + BELT_HEIGHT / 2)) + dx;
+						p32 = ((DWORD*)buf) + width * (height - 1 - (y + (BELT_HEIGHT >>2))) + dx;
 						*p32 = (top <= y && y <= bottom) ? opaque : empty;
 					}
 				}
