@@ -113,6 +113,8 @@ int resolveIni(const TCHAR* src, TCHAR* dst, int maxNum) {
 }
 
 int saveSetting(const CONFIG* src, const TCHAR* target) {
+	return 0;
+
 	TCHAR buf[STRBUF];
 	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
 	WritePrivateProfileString(TEXT(APP_NAME), TEXT("rate"), buf, target);
@@ -132,6 +134,8 @@ int saveSetting(const CONFIG* src, const TCHAR* target) {
 /// <param name="target"></param>
 /// <returns></returns>
 int loadSetting(CONFIG* dst, const TCHAR* target) {
+	return 0;
+
 	dst->rate = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("rate"), dst->rate, target);
 	dst->scale = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->scale, target);
 	dst->count = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->count, target);
@@ -386,7 +390,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	DWORD empty = 0xff3f3f3f; // 上からARGB
 
 	// サンプル要求長さ
-	//int timelength = 8 * ratea * scalev / ratev;
 	int timelength = config.count * width;
 
 	// ratev 30 or 60, scale 1
@@ -476,7 +479,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				minVal = (fval <= minVal) ? fval : minVal;
 
 				{ // データ描画
-					// オフセットを正しく計算する
+					// TODO: オフセットを正しく計算する
 
 					int dx = i % width;
 					int dy = i / width + BELT_HEIGHT + BELT_HEIGHT / 2;
