@@ -366,7 +366,7 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 /// ビデオ
 /// </summary>
 /// <param name="p"></param>
-/// <param name="frame"></param>
+/// <param name="frame">ビデオ単位のインデックス</param>
 /// <param name="buf"></param>
 /// <returns></returns>
 int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
@@ -384,25 +384,26 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	const int scalev = config.scale;
 	const int ratea = pa->nSamplesPerSec;
 
-	int width = pv->biWidth;
-	int height = pv->biHeight;
-	int pxNum = width * height;
-	int byteNum = pxNum * 4;
-	DWORD opaque = 0xff3fff3f;
-	DWORD empty = 0xff3f3f3f; // 上からARGB
+	const int width = pv->biWidth;
+	const int height = pv->biHeight;
+	const int pxNum = width * height;
+	const int byteNum = pxNum * 4;
+	const DWORD opaque = 0xff3fff3f;
+	const DWORD empty = 0xff3f3f3f; // 上からARGB
 
 	// サンプル要求長さ
-	int timelength = config.count * width;
+	const int timelength = config.count * width;
 
 	// ratev 30 or 60, scale 1
-	//int timestart = (frame - 4) * ratea * scalev / ratev;
-	int timestart = frame * ratea * scalev / ratev - timelength / 2;
+	const int timestart = frame * ratea * scalev / ratev - timelength / 2;
 
 	// ファイル上のオフセット(サンプル時刻単位)
 	int filestart = timestart;
 	// ファイルへの要求長さ
 	int filelength = timelength;
-	// オフセットそのものは変更しないので4つとも必要
+
+	// 読み取り先オフセット
+	int bufferOffsetTime = (timestart < 0) ? -timestart : 0;
 
 	if (filestart < 0) {
 		filelength += filestart;
@@ -413,7 +414,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		filelength -= over;
 	}
 
-
 	DWORD reqBufferByte = filelength * readBlockByte;
 	if (p->maxBufferByte < reqBufferByte) {
 		reqBufferByte = p->maxBufferByte;
@@ -421,7 +421,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	SetFilePointer(p->hFile,
 		p->indataStart + filestart * readBlockByte,
 		NULL, FILE_BEGIN);
-	int bufferOffsetTime = (timestart < 0) ? -timestart : 0;
 	DWORD read = 0;
 	auto resultbuf = ReadFile(p->hFile,
 		((unsigned char*)p->buffer) + bufferOffsetTime * readBlockByte,
@@ -440,19 +439,19 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		int dx = 0;
 		for (int i = 0; i < timelength; ++i) {
 			bool available = true;
-			// 全体での時刻
+			// ファイル全体での時刻
 			int curTime = timestart + i;
 			if (curTime < 0 || curTime >= p->lengthBySample) {
 				available = false;
 			}
 			// バッファの中で
-			int curBufferOffset = curTime - filestart;
-			if (curBufferOffset >= 1024 * 1024 / readBlockByte) {
-				available = false;
-			}
+			//int curBufferOffset = curTime - filestart;
+			//if (curBufferOffset >= 1024 * 1024 / readBlockByte) {
+			//	available = false;
+			//}
 
 			if (available) {
-				int offsetSample = curBufferOffset * fileChNum + chIndex;
+				int offsetSample = i * fileChNum + chIndex;
 				float fval = 0.0f;
 				if (p->elementSize == 2) {
 					short* p16 = ((short*)p->buffer) + offsetSample;
