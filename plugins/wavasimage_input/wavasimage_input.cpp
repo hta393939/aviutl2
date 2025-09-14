@@ -378,10 +378,20 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	const int scalev = config.scale;
 	const int ratea = pa->nSamplesPerSec;
 
+	int width = pv->biWidth;
+	int height = pv->biHeight;
+	int pxNum = width * height;
+	int byteNum = pxNum * 4;
+	DWORD opaque = 0xff3fff3f;
+	DWORD empty = 0xff3f3f3f; // 上からARGB
 
-	int timestart = (frame - 4) * ratea * scalev / ratev;
 	// サンプル要求長さ
-	int timelength = 8 * ratea * scalev / ratev;
+	//int timelength = 8 * ratea * scalev / ratev;
+	int timelength = config.count * width;
+
+	//int timestart = (frame - 4) * ratea * scalev / ratev;
+	int timestart = frame * ratea * scalev / ratev - timelength / 2;
+
 	// ファイル上のオフセット(サンプル時刻単位)
 	int filestart = timestart;
 	// ファイルへの要求長さ
@@ -411,12 +421,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	int realLength = read / readBlockByte;
 
 
-	int width = pv->biWidth;
-	int height = pv->biHeight;
-	int pxNum = width * height;
-	int byteNum = pxNum * 4;
-	DWORD opaque = 0xff3fff3f;
-	DWORD empty = 0xff3f3f3f; // 上からARGB
+
 	{
 		DWORD* p32;
 		float maxVal = -9999.0f;
