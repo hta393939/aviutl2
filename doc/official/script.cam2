@@ -40,10 +40,18 @@ obj.setoption("camera_param",cam)
 @目標中心回転
 --track0:水平回転,-3600,3600,0,0.01
 --track1:垂直回転,-3600,3600,0,0.01
+--track2:距離,-10000,+10000,0,0.01
 cam = obj.getoption("camera_param")
 x = cam.x-cam.tx
 y = cam.y-cam.ty
 z = cam.z-cam.tz
+-- 距離
+l = math.sqrt(x*x+y*y+z*z)
+if( l == 0 ) then return end
+l = (l+obj.track2)/l
+x = x*l
+y = y*l
+z = z*l
 -- 水平回転
 vx = cam.ux
 vy = cam.uy
