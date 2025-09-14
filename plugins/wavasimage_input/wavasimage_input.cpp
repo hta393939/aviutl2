@@ -16,6 +16,10 @@
 #define BELT_HEIGHT (128)
 // 振幅描画部分の高さ
 #define INBELT_HEIGHT (64)
+// 2 ** 31
+#define B31F (2147483648.0f)
+// 2 ** 23
+#define B23F (8388608.0f)
 
 //---------------------------------------------------------------------
 //		プラグイン内部変数
@@ -48,7 +52,7 @@ struct MY_FILE_HANDLE {
 	LONG videoformatsize;
 	void* audioformat;
 	LONG audioformatsize;
-	unsigned char head[64];
+
 	// PCMだと44(WAVEFORMATEXだと46)
 	int indataStart;
 	DWORD byteData;
@@ -57,9 +61,13 @@ struct MY_FILE_HANDLE {
 	DWORD elementSize;
 	// ファイル側のチャンネル数
 	DWORD fileNumChannel;
+	// ファイル側のタグ(元はWORD)
+	DWORD fileTag;
 
 	HANDLE buffer;
 	int maxBufferByte;
+
+	unsigned char head[256];
 };
 
 TCHAR gDir[STRBUF] = { 0 };
@@ -233,7 +241,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	p->hFile = INVALID_HANDLE_VALUE;
 	p->videoformatsize = sizeof(BITMAPINFOHEADER);
 	p->audioformatsize = sizeof(WAVEFORMATEX);
-	p->maxBufferByte = 1024 * 1024;
+	p->maxBufferByte = 8 * 4 * 1024 * 128;
 	p->videoformat = GlobalAlloc(GPTR, p->videoformatsize);
 	p->audioformat = GlobalAlloc(GPTR, p->audioformatsize);
 	p->buffer = GlobalAlloc(GPTR, p->maxBufferByte);
@@ -292,6 +300,10 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		}
 
 		if (data[0] == MAKEFOURCC('f', 'm', 't', ' ')) {
+			if (data[1] < 16 || data[1] > 256) { // PCM16バイトは必須
+				func_close(p);
+				return NULL;
+			}
 			result = ReadFile(p->hFile, p->head, data[1], &dwRead, NULL);
 			if (!result || dwRead != data[1]) {
 				func_close(p);
@@ -328,7 +340,8 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 	p->fileNumChannel = pfh->nChannels;
-	p->elementSize = (pfh->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ? 4 : ((pfh->wBitsPerSample + 7) / 8);
+	p->elementSize = (pfh->wBitsPerSample + 7) / 8;
+	p->fileTag = pfh->wFormatTag;
 
 	// 書き出しはfloatとする
 	pa->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
@@ -377,7 +390,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	const int fileChNum = p->fileNumChannel;
 	const int readBlockByte = fileChNum * p->elementSize;
 
-	ZeroMemory(buf, pv->biWidth * pv->biHeight * 4);
 
 	// サンプル単位時刻での開始時刻
 	const int ratev = config.rate;
@@ -386,16 +398,18 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 
 	const int width = pv->biWidth;
 	const int height = pv->biHeight;
-	const int pxNum = width * height;
-	const int byteNum = pxNum * 4;
+	const int byteNum = width * height * 4;
 	const DWORD opaque = 0xff3fff3f;
 	const DWORD empty = 0xff3f3f3f; // 上からARGB
 
+	ZeroMemory(buf, byteNum);
+
 	// サンプル要求長さ
 	const int timelength = config.count * width;
+	// フレーム先頭に対応する時刻。ratev 30 or 60, scale 1
+	const int framestart = frame * ratea * scalev / ratev;
 
-	// ratev 30 or 60, scale 1
-	const int timestart = frame * ratea * scalev / ratev - timelength / 2;
+	const int timestart = framestart - timelength / 2;
 
 	// ファイル上のオフセット(サンプル時刻単位)
 	int filestart = timestart;
@@ -444,11 +458,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 			if (curTime < 0 || curTime >= p->lengthBySample) {
 				available = false;
 			}
-			// バッファの中で
-			//int curBufferOffset = curTime - filestart;
-			//if (curBufferOffset >= 1024 * 1024 / readBlockByte) {
-			//	available = false;
-			//}
 
 			if (available) {
 				int offsetSample = i * fileChNum + chIndex;
@@ -464,16 +473,16 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				else if (p->elementSize == 3) {
 					int val32 = 0;
 					CopyMemory(&val32, ((unsigned char*)p->buffer) + offsetSample * p->elementSize, 3);
-					fval = ((float)((val32 << 8) >> 8)) / 8388608.0f;
+					fval = ((float)((val32 << 8) >> 8)) / B23F;
 				}
 				else {
-					if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+					if (p->fileTag == WAVE_FORMAT_IEEE_FLOAT) {
 						float* pf = ((float*)p->buffer) + offsetSample;
 						fval = *pf;
 					}
 					else {
 						int* p32 = ((int*)p->buffer) + offsetSample;
-						fval = ((float)*p32) / 2147483648.0f;
+						fval = ((float)*p32) / B31F;
 					}
 				}
 				maxVal = (fval >= maxVal) ? fval : maxVal;
@@ -481,9 +490,11 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 
 				{ // データ描画
 					// TODO: オフセットを正しく計算する
-					int dx = i % width;
-					int dy = i / width + BELT_HEIGHT;
-					if (dy < height) {
+					// 0, BELT_HEIGHT + BELT_HEIGHT / 2 が framestart
+					int shift = (i - timelength / 2) + width * (BELT_HEIGHT + BELT_HEIGHT / 2);
+					int dx = shift % width;
+					int dy = shift / width;
+					if (0 <= shift && dy < height) {
 						auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
 						DWORD b = (fval < 0.0) ? 192 : 255;
 						DWORD a = 0xff;
@@ -516,47 +527,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				count = 0;
 			}
 
-		}
-	}
-	return byteNum;
-}
-
-int makeData(MY_FILE_HANDLE* p, int frame, void* buf) {
-	auto pv = (BITMAPINFOHEADER*)p->videoformat;
-	auto pa = (WAVEFORMATEX*)p->audioformat;
-	auto fileChNum = p->fileNumChannel;
-	//int pxNum = p->videoformat;
-
-	/*
-	DWORD reqBufferByte = length * chNum * p->elementSize;
-	if (p->maxBufferByte < reqBufferByte) {
-		reqBufferByte = p->maxBufferByte;
-	}
-	SetFilePointer(p->hFile,
-		p->indataStart + start * chNum * p->elementSize,
-		NULL, FILE_BEGIN);
-	DWORD read = 0;
-	auto resultbuf = ReadFile(p->hFile, p->buffer, reqBufferByte, &read, NULL);
-	if (resultbuf == FALSE) {
-		return 0;
-	}
-	int realLength = read / chNum / p->elementSize;
-	*/
-
-	int width = pv->biWidth;
-	int height = pv->biHeight;
-	int pxNum = width * height;
-	int byteNum = pxNum * 4;
-	ZeroMemory(buf, byteNum);
-	DWORD noData = 0x00000000;
-	{
-		auto pstart = (unsigned int*)buf;
-		for (int y = 0; y < height; ++y) {
-			auto p32 = pstart + (height - 1 - y) * width;
-			for (int x = 0; x < width; ++x) {
-				*p32 = 0x80ffffff;
-				++p32;
-			}
 		}
 	}
 	return byteNum;
@@ -641,7 +611,7 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			int val = 0;
 			CopyMemory(&val, ((unsigned char*)p->buffer) + byteOffset, 3);
 			val = (val << 8) >> 8;
-			float fval = ((float)val) / ((float)0x1000000);
+			float fval = ((float)val) / B23F;
 #if (SINGLE_CHANNEL!=0)
 			*dst = fval;
 			++dst;
@@ -655,7 +625,7 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 		}
 	}
 	else {
-		if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+		if (p->fileTag == WAVE_FORMAT_IEEE_FLOAT) {
 			float* psrc = ((float*)p->buffer) + chIndex;
 			for (int i = 0; i < realLength; ++i) {
 				float val = *psrc;
@@ -674,7 +644,7 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 		else {
 			int* psrc = ((int*)p->buffer) + chIndex;
 			for (int i = 0; i < realLength; ++i) {
-				float val = ((float)*psrc) / 2147483648.0f;
+				float val = ((float)*psrc) / B31F;
 #if (SINGLE_CHANNEL != 0)
 				* dst = val;
 				++dst;
