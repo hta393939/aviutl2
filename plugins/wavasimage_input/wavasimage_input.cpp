@@ -403,6 +403,11 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		filelength += filestart;
 		filestart = 0;
 	}
+	int over = filestart + filelength - p->lengthBySample;
+	if (over > 0) {
+		filelength -= over;
+	}
+
 
 	DWORD reqBufferByte = filelength * readBlockByte;
 	if (p->maxBufferByte < reqBufferByte) {
@@ -419,23 +424,25 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	if (resultbuf == FALSE) {
 		return 0;
 	}
+	// filestart から実際に有効なチック数
 	int realLength = read / readBlockByte;
 	{
 		DWORD* p32;
 		float maxVal = -9999.0f;
 		float minVal = 9999.0f;
 		int count = 0;
-		// ドット座標
+		// 波形ドット座標
 		int dx = 0;
-		for (int i = 0; i < realLength; ++i) {
+		for (int i = 0; i < timelength; ++i) {
 			bool available = true;
-
+			// 全体での時刻
 			int curTime = timestart + i;
-			if (curTime < 0) {
+			if (curTime < 0 || curTime >= p->lengthBySample) {
 				available = false;
 			}
+			// バッファの中で
 			int curBufferOffset = curTime - filestart;
-			if (curBufferOffset >= bufferOffsetTime + realLength) {
+			if (curBufferOffset >= 1024 * 1024 / readBlockByte) {
 				available = false;
 			}
 
@@ -469,8 +476,10 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				minVal = (fval <= minVal) ? fval : minVal;
 
 				{ // データ描画
+					// オフセットを正しく計算する
+
 					int dx = i % width;
-					int dy = i / width + BELT_HEIGHT;
+					int dy = i / width + BELT_HEIGHT + BELT_HEIGHT / 2;
 					if (dy < height) {
 						auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
 						DWORD b = (fval < 0.0) ? 192 : 255;
@@ -488,7 +497,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 			count += 1;
 			if (count >= config.count) {
 				if (minVal <= maxVal && dx < width) {
-					// ドット打ち
+					// 波形ドット打ち
 					int top = (int)((1.0f - maxVal) * 32.0f + 0.5f);
 					int bottom = (int)((1.0f - minVal) * 32.0f + 0.5f);
 
@@ -501,8 +510,8 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 							*p32 = empty;
 						}
 					}
-					dx += 1;
 				}
+				dx += 1;
 
 				maxVal = -9999.0f;
 				minVal = 9999.0f;
