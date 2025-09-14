@@ -377,6 +377,8 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	const int ratev = config.rate;
 	const int scalev = config.scale;
 	const int ratea = pa->nSamplesPerSec;
+
+
 	int timestart = (frame - 4) * ratea * scalev / ratev;
 	// サンプル要求長さ
 	int timelength = 8 * ratea * scalev / ratev;
@@ -398,7 +400,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	SetFilePointer(p->hFile,
 		p->indataStart + filestart * fileChNum * p->elementSize,
 		NULL, FILE_BEGIN);
-	int bufferOffsetTime = (timestart < 0) ? timestart : 0;
+	int bufferOffsetTime = (timestart < 0) ? -timestart : 0;
 	DWORD read = 0;
 	auto resultbuf = ReadFile(p->hFile,
 		((unsigned char*)p->buffer) + bufferOffsetTime * readBlockByte,
@@ -416,23 +418,20 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	DWORD opaque = 0xff3fff3f;
 	DWORD empty = 0xff3f3f3f; // 上からARGB
 	{
-		if (config.videoTrack) {
-			opaque = 0x80ffffff;
-		}
-
 		DWORD* p32;
 		float maxVal = -9999.0f;
 		float minVal = 9999.0f;
 		int count = 0;
+		// ドット座標
 		int dx = 0;
 		for (int x = 0; x < realLength; ++x) {
 			if (count >= config.count) {
-				if (minVal <= maxVal) {
+				if (minVal <= maxVal && dx < width) {
 					// ドット打ち
 					int top = (int)((1.0f - maxVal) * 32.0f + 0.5f);
 					int bottom = (int)((1.0f - minVal) * 32.0f + 0.5f);
 
-					for (int y = 0; y < height; ++y) {
+					for (int y = 0; y < BELT_HEIGHT; ++y) {
 						p32 = ((DWORD*)buf) + width * (height - 1 - y) + dx;
 						if (top <= y && y <= bottom) {
 							*p32 = opaque;
@@ -463,35 +462,42 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				short* p16 = ((short*)p->buffer) + curBufferOffset * fileChNum + chIndex;
 				fval = ((float)*p16) / 32768.0f;
 			}
-			else if (p->elementSize == 4) {
-				// 未実装
-			}
 			else if (p->elementSize == 1) {
-				// 未実装
+				unsigned char* p8 = ((unsigned char*)p->buffer) + curBufferOffset * fileChNum + chIndex;
+				fval = (((float)*p8) - 128.0f) / 128.0f;
+			}
+			else if (p->elementSize == 3) {
+				int val32 = 0;
+				CopyMemory(&val32, ((unsigned char*)p->buffer) + (curBufferOffset * fileChNum + chIndex) * p->elementSize, 3);
+				fval = ((float)((val32 << 8) >> 8)) / 8388608.0f;
 			}
 			else {
-				float* pf = ((float*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-				fval = *pf;
+				if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+					float* pf = ((float*)p->buffer) + curBufferOffset * fileChNum + chIndex;
+					fval = *pf;
+				}
+				else {
+					int* p32 = ((int*)p->buffer) + curBufferOffset * fileChNum + chIndex;
+					fval = ((float)*p32) / 2147483648.0f;
+				}
 			}
 			maxVal = (fval >= maxVal) ? fval : maxVal;
 			minVal = (fval <= minVal) ? fval : minVal;
-		}
 
-		if (count >= 1 && minVal <= maxVal) {
-			// ドット打ち
-			int top = (int)((1.0f - maxVal) * 32.0f + 0.5f);
-			int bottom = (int)((1.0f - minVal) * 32.0f + 0.5f);
-
-			for (int y = 0; y < height; ++y) {
-				p32 = ((DWORD*)buf) + width * (height - 1 - y) + dx;
-				if (top <= y && y <= bottom) {
-					*p32 = opaque;
-				}
-				else {
-					*p32 = empty;
+			{ // データ描画
+				int dx = x % width;
+				int dy = x / width + BELT_HEIGHT;
+				if (dy < height) {
+					auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
+					DWORD b = (fval < 0.0) ? 192 : 255;
+					DWORD a = 0xff;
+					fval = (fval < 0.0) ? -fval : fval;
+					DWORD val32 = (DWORD)(fval * 32768.0f + 0.5f);
+					DWORD r = val32 % 256;
+					DWORD g = val32 / 256;
+					*p32 = (a << 24) | (r << 16) | (g << 8) | b;
 				}
 			}
-			dx += 1;
 		}
 	}
 	return byteNum;
