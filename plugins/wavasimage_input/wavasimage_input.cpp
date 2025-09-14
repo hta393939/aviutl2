@@ -389,6 +389,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	//int timelength = 8 * ratea * scalev / ratev;
 	int timelength = config.count * width;
 
+	// ratev 30 or 60, scale 1
 	//int timestart = (frame - 4) * ratea * scalev / ratev;
 	int timestart = frame * ratea * scalev / ratev - timelength / 2;
 
@@ -403,12 +404,12 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		filestart = 0;
 	}
 
-	DWORD reqBufferByte = filelength * fileChNum * p->elementSize;
+	DWORD reqBufferByte = filelength * readBlockByte;
 	if (p->maxBufferByte < reqBufferByte) {
 		reqBufferByte = p->maxBufferByte;
 	}
 	SetFilePointer(p->hFile,
-		p->indataStart + filestart * fileChNum * p->elementSize,
+		p->indataStart + filestart * readBlockByte,
 		NULL, FILE_BEGIN);
 	int bufferOffsetTime = (timestart < 0) ? -timestart : 0;
 	DWORD read = 0;
@@ -419,9 +420,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		return 0;
 	}
 	int realLength = read / readBlockByte;
-
-
-
 	{
 		DWORD* p32;
 		float maxVal = -9999.0f;
@@ -429,7 +427,65 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		int count = 0;
 		// ドット座標
 		int dx = 0;
-		for (int x = 0; x < realLength; ++x) {
+		for (int i = 0; i < realLength; ++i) {
+			bool available = true;
+
+			int curTime = timestart + i;
+			if (curTime < 0) {
+				available = false;
+			}
+			int curBufferOffset = curTime - filestart;
+			if (curBufferOffset >= bufferOffsetTime + realLength) {
+				available = false;
+			}
+
+			if (available) {
+				int offsetSample = curBufferOffset * fileChNum + chIndex;
+				float fval = 0.0f;
+				if (p->elementSize == 2) {
+					short* p16 = ((short*)p->buffer) + offsetSample;
+					fval = ((float)*p16) / 32768.0f;
+				}
+				else if (p->elementSize == 1) {
+					unsigned char* p8 = ((unsigned char*)p->buffer) + offsetSample;
+					fval = (((float)*p8) - 128.0f) / 128.0f;
+				}
+				else if (p->elementSize == 3) {
+					int val32 = 0;
+					CopyMemory(&val32, ((unsigned char*)p->buffer) + offsetSample * p->elementSize, 3);
+					fval = ((float)((val32 << 8) >> 8)) / 8388608.0f;
+				}
+				else {
+					if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+						float* pf = ((float*)p->buffer) + offsetSample;
+						fval = *pf;
+					}
+					else {
+						int* p32 = ((int*)p->buffer) + offsetSample;
+						fval = ((float)*p32) / 2147483648.0f;
+					}
+				}
+				maxVal = (fval >= maxVal) ? fval : maxVal;
+				minVal = (fval <= minVal) ? fval : minVal;
+
+				{ // データ描画
+					int dx = i % width;
+					int dy = i / width + BELT_HEIGHT;
+					if (dy < height) {
+						auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
+						DWORD b = (fval < 0.0) ? 192 : 255;
+						DWORD a = 0xff;
+						fval = (fval < 0.0) ? -fval : fval;
+						DWORD val32 = (DWORD)(fval * 32768.0f + 0.5f);
+						DWORD r = val32 % 256;
+						DWORD g = val32 / 256;
+						*p32 = (a << 24) | (r << 16) | (g << 8) | b;
+					}
+				}
+
+			}
+
+			count += 1;
 			if (count >= config.count) {
 				if (minVal <= maxVal && dx < width) {
 					// ドット打ち
@@ -452,57 +508,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				minVal = 9999.0f;
 				count = 0;
 			}
-			count += 1;
 
-			int curTime = timestart + x;
-			if (curTime < 0) {
-				continue; // 無効値
-			}
-			int curBufferOffset = curTime - filestart;
-			if (curBufferOffset >= bufferOffsetTime + realLength) {
-				continue; // 無効値
-			}
-			float fval = 0.0f;
-			if (p->elementSize == 2) {
-				short* p16 = ((short*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-				fval = ((float)*p16) / 32768.0f;
-			}
-			else if (p->elementSize == 1) {
-				unsigned char* p8 = ((unsigned char*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-				fval = (((float)*p8) - 128.0f) / 128.0f;
-			}
-			else if (p->elementSize == 3) {
-				int val32 = 0;
-				CopyMemory(&val32, ((unsigned char*)p->buffer) + (curBufferOffset * fileChNum + chIndex) * p->elementSize, 3);
-				fval = ((float)((val32 << 8) >> 8)) / 8388608.0f;
-			}
-			else {
-				if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
-					float* pf = ((float*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-					fval = *pf;
-				}
-				else {
-					int* p32 = ((int*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-					fval = ((float)*p32) / 2147483648.0f;
-				}
-			}
-			maxVal = (fval >= maxVal) ? fval : maxVal;
-			minVal = (fval <= minVal) ? fval : minVal;
-
-			{ // データ描画
-				int dx = x % width;
-				int dy = x / width + BELT_HEIGHT;
-				if (dy < height) {
-					auto p32 = ((DWORD*)buf) + width * (height - 1 - dy) + dx;
-					DWORD b = (fval < 0.0) ? 192 : 255;
-					DWORD a = 0xff;
-					fval = (fval < 0.0) ? -fval : fval;
-					DWORD val32 = (DWORD)(fval * 32768.0f + 0.5f);
-					DWORD r = val32 % 256;
-					DWORD g = val32 / 256;
-					*p32 = (a << 24) | (r << 16) | (g << 8) | b;
-				}
-			}
 		}
 	}
 	return byteNum;
@@ -556,34 +562,35 @@ int makeData(MY_FILE_HANDLE* p, int frame, void* buf) {
 // 戻り値	: 読み込んだデータサイズ
 int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 	auto p = (MY_FILE_HANDLE*)ih;
-//	if ((config.videoTrack % 2) == 0) {
-		return makeView(p, frame, buf);
-//	}
-//	return makeData(p, frame, buf);
+	return makeView(p, frame, buf);
 }
 
 int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 	auto p = (MY_FILE_HANDLE*)ih;
-	auto ph = (WAVEFORMATEX*)p->audioformat;
+	auto pa = (WAVEFORMATEX*)p->audioformat;
 	const int fileChNum = p->fileNumChannel;
-	const int chIndex = config.audioTrack / 2;
+	// 1tickあたりのバイト数
+	const int readBlockByte = fileChNum * p->elementSize;
+	const int chIndex = config.audioTrack;
 	const int writeIndex = chIndex % 2;
 	float* dst = (float*)buf;
 	int sampleNum = 0;
 
-	DWORD reqBufferByte = length * fileChNum * p->elementSize;
+	DWORD reqBufferByte = length * readBlockByte;
 	if (p->maxBufferByte < reqBufferByte) {
 		reqBufferByte = p->maxBufferByte;
 	}
 	SetFilePointer(p->hFile,
-		p->indataStart + start * fileChNum * p->elementSize,
+		p->indataStart + start * readBlockByte,
 		NULL, FILE_BEGIN);
 	DWORD read = 0;
 	auto resultbuf = ReadFile(p->hFile, p->buffer, reqBufferByte, &read, NULL);
 	if (resultbuf == FALSE) {
 		return 0;
 	}
-	const int realLength = read / fileChNum / p->elementSize;
+	const int realLength = read / readBlockByte;
+
+	ZeroMemory(buf, length * readBlockByte);
 
 	if (p->elementSize == 2) {
 		short* psrc = ((short*)p->buffer) + chIndex;
@@ -594,8 +601,6 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			++dst;
 			++sampleNum;
 #else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
 			dst[writeIndex] = val;
 			dst += 2;
 			sampleNum += 2;
@@ -615,8 +620,6 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			++dst;
 			++sampleNum;
 #else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
 			dst[writeIndex] = fval;
 			dst += 2;
 			sampleNum += 2;
@@ -637,8 +640,6 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			++dst;
 			++sampleNum;
 #else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
 			dst[writeIndex] = fval;
 			dst += 2;
 			sampleNum += 2;
@@ -646,22 +647,38 @@ int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 			byteOffset += fileChNum * 3;
 		}
 	}
-	else { // float 扱い
-		float* psrc = ((float*)p->buffer) + chIndex;
-		for (int i = 0; i < realLength; ++i) {
-			float val = *psrc;
+	else {
+		if (pa->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) {
+			float* psrc = ((float*)p->buffer) + chIndex;
+			for (int i = 0; i < realLength; ++i) {
+				float val = *psrc;
 #if (SINGLE_CHANNEL != 0)
-			*dst = val;
-			++dst;
-			++sampleNum;
+				* dst = val;
+				++dst;
+				++sampleNum;
 #else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
-			dst[writeIndex] = val;
-			dst += 2;
-			sampleNum += 2;
+				dst[writeIndex] = val;
+				dst += 2;
+				sampleNum += 2;
 #endif
-			psrc += fileChNum;
+				psrc += fileChNum;
+			}
+		}
+		else {
+			int* psrc = ((int*)p->buffer) + chIndex;
+			for (int i = 0; i < realLength; ++i) {
+				float val = ((float)*psrc) / 2147483648.0f;
+#if (SINGLE_CHANNEL != 0)
+				* dst = val;
+				++dst;
+				++sampleNum;
+#else
+				dst[writeIndex] = val;
+				dst += 2;
+				sampleNum += 2;
+#endif
+				psrc += fileChNum;
+			}
 		}
 	}
 	return sampleNum;
