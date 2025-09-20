@@ -3,7 +3,7 @@
 #include <vector>
 #include <map>
 
-typedef unsigned long long u64;
+typedef unsigned __int64 u64;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
@@ -180,9 +180,10 @@ public:
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
 		{ // 
 			int offsetNum = this->dwHeight;
+			this->dataOffset.resize(offsetNum);
 			for (int j = 0; j < offsetNum; ++j) {
-				auto p = (u64*)(buf + c);
-				this->dataOffset.push_back(*p);
+				u64 val = *((u64*)(buf + c));
+				this->dataOffset[j] = val;
 				c += 8;
 			}
 		}

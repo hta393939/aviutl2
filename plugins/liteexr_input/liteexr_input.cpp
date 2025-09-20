@@ -210,7 +210,6 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	int seqNum = 0;
 	if (gSeqSep.digit >= 1) { // 1桁以上の数値が含まれる
 		int cur = gSeqSep.begin;
-		int seqNum = 0;
 		for (int i = 0; i < 10000; ++i) {
 			makeNumFileName(gTempText, cur);
 			auto result = PathFileExists(gTempText);
