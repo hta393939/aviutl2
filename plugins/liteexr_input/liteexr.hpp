@@ -45,7 +45,7 @@ public:
 	}
 
 	/// <summary>
-	/// Blender 
+	/// Blender のみ
 	/// </summary>
 	/// <param name="buf"></param>
 	/// <param name="byteNum"></param>
@@ -54,7 +54,7 @@ public:
 		bool err = false;
 		int c = 0;
 
-		{ // 8�o�C�g
+		{ // 8バイト
 			if ((buf[0] != 'v') || (buf[1] != '/') || (buf[2] != '1')) {
 				return -1;
 			}
@@ -71,7 +71,7 @@ public:
 				}
 				c += byte1;
 				if (byte1 == 1) {
-					break; // 
+					break; // dict の終了
 				}
 
 				auto byte2 = this->_parseNullTerm(buf + c, valtype);
@@ -80,7 +80,7 @@ public:
 				}
 				c += byte2;
 
-				int byte3 = *((int*)(buf + c)); // 
+				int byte3 = *((int*)(buf + c)); // バイト数
 				c += 4;
 
 				if (name == "compression") {
@@ -135,7 +135,7 @@ public:
 						}
 						c += byte5;
 						if (subname == "") {
-							break; // 
+							break; // dict 終了
 						}
 
 						int byte6 = *((int*)(buf + c));
@@ -163,7 +163,7 @@ public:
 							index = 2;
 						}
 						if (index < 0) {
-							err = true; // 
+							err = true; // 知らないチャンネル名
 							break;
 						}
 						this->channelType[order] = dataType;

@@ -14,7 +14,7 @@ struct SEQSEP {
 	// 後ろから探して最初のドット
 	int dext;
 	// 桁数
-	int count;
+	int digit;
 	// カウンタの開始数
 	int begin;
 };
@@ -101,7 +101,12 @@ unsigned short _ftob16(float v) {
 	return ret;
 }
 
-
+/// <summary>
+/// 連番でなくても count は1以上の可能性がある。
+/// </summary>
+/// <param name="file"></param>
+/// <param name="dst"></param>
+/// <returns></returns>
 int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 	if (!file || !dst) {
 		return -1;
@@ -110,7 +115,7 @@ int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 	dst->head = -1;
 	dst->tail = -1;
 	dst->dext = -1;
-	dst->count = 0;
+	dst->digit = 0;
 	dst->begin = 0;
 	
 	int len = 0;
@@ -147,13 +152,13 @@ int _parseSeqSep(TCHAR* file, SEQSEP* dst) {
 		}
 	}
 	if (dst->head >= 0) {
-		dst->count = dst->tail - dst->head + 1;
-		int adjust = dst->count - 9;
+		dst->digit = dst->tail - dst->head + 1;
+		int adjust = dst->digit - 9;
 		if (adjust > 0) {
 			dst->head += adjust;
-			dst->count = 9;
+			dst->digit = 9;
 		}
-		for (int i = 0; i < dst->count; ++i) {
+		for (int i = 0; i < dst->digit; ++i) {
 			dst->begin = dst->begin * 10 + (dst->pstart[dst->head + i] - 0x30);
 		}
 	}

@@ -6,6 +6,9 @@
 #include "../lib/util.hpp"
 #include "./liteexr.hpp"
 
+#include <Shlwapi.h>
+#pragma comment(lib, "shlwapi.lib")
+
 #define STRBUF (4096)
 
 #define APPNAME "liteexr_input"
@@ -27,6 +30,14 @@ static CONFIG config = {
 };
 
 SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
+
+struct MY_HANDLE {
+	int seqNum;
+	DWORD videoformatsize;
+	void* videoformat;
+	LiteExr topParser;
+	HANDLE topFile;
+};
 
 
 int saveSetting(CONFIG* src) {
@@ -100,7 +111,32 @@ WCHAR gConfigText[1024] = {0};
 
 
 WCHAR gBaseName[STRBUF] = { 0 };
+WCHAR gLatter[STRBUF] = { 0 };
 
+int makeNumFileName(TCHAR* dst, int index) {
+	TCHAR digit[256] = { 0 };
+	StringCchPrintf(digit, 256, TEXT("%%s%%0%dd%%s"), gSeqSep.digit);
+	StringCchPrintf(dst, STRBUF,
+		digit, gBaseName, index, gLatter);
+	return index;
+}
+
+
+// 入力ファイルをクローズする関数へのポインタ
+// ih		: 入力ファイルハンドル
+// 戻り値	: TRUEなら成功
+bool func_close(INPUT_HANDLE ih) {
+	if (!ih) {
+		return true;
+	}
+	auto p = (MY_HANDLE*)ih;
+	if (p->topFile) {
+		CloseHandle(p->topFile);
+	}
+	GlobalFree(p->videoformat);
+	GlobalFree(ih);
+	return true;
+}
 
 
 // 入力ファイルをオープンする関数へのポインタ
@@ -109,32 +145,108 @@ WCHAR gBaseName[STRBUF] = { 0 };
 INPUT_HANDLE func_open(LPCWSTR file) {
 	StringCchCopy(gBaseName, STRBUF, file);
 
-	LiteExr loader;
+	MY_HANDLE* p = (MY_HANDLE*)GlobalAlloc(GPTR, sizeof(MY_HANDLE));
+	if (!p) {
+		return NULL;
+	}
+	p->topFile = INVALID_HANDLE_VALUE;
+
+	p->videoformatsize = sizeof(BITMAPINFOHEADER);
+	p->videoformat = GlobalAlloc(GPTR, p->videoformatsize);
+
+	if (!p->videoformat) {
+		func_close(p);
+		return NULL;
+	}
+
+	p->topFile = CreateFile(file, GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+	if (p->topFile == INVALID_HANDLE_VALUE) {
+		func_close(p);
+		return NULL;
+	}
+
+	unsigned char buf[256];
+	DWORD dwRead = 0;
+	auto bresult = ReadFile(p->topFile, buf, 256, &dwRead, NULL);
+	if (!bresult) {
+		func_close(p);
+		return NULL;
+	}
+
+	int result = p->topParser.parse(buf, dwRead);
+	if (result <= 0) {
+		func_close(p);
+		return NULL;
+	}
+
+	{ // フォーマットの指定
+		auto bih = (BITMAPINFOHEADER*)p->videoformat;
+		bih->biSize = 0;
+		bih->biWidth = p->topParser.dwWidth;
+		bih->biHeight = p->topParser.dwHeight;
+		bih->biPlanes = 1;
+		bih->biBitCount = 2 * 4;
+		bih->biCompression = MAKEFOURCC('H', 'F', '6', '4');
+		bih->biSizeImage = 0;
+		bih->biClrUsed = 0;
+		bih->biClrImportant = 0;
+	}
 
 	_parseSeqSep((TCHAR*)file, &gSeqSep);
-	if (gSeqSep.count >= 1) { // 連番検知した
-
+	StringCchCopy(gBaseName, STRBUF, file);
+	if (gSeqSep.head >= 0) {
+		gBaseName[gSeqSep.head] = 0;
 	}
-	else { // 1枚だけ
-		loader.parse(nullptr, 0);
+	if (gSeqSep.tail >= 0) {
+		StringCchCopy(gLatter, STRBUF, file + gSeqSep.tail + 1);
 	}
 
-	return NULL;
+	TCHAR numFilename[STRBUF];
+	int seqNum = 0;
+	if (gSeqSep.digit >= 1) { // 1桁以上の数値が含まれる
+		int cur = gSeqSep.begin;
+		int seqNum = 0;
+		for (int i = 0; i < 10000; ++i) {
+			makeNumFileName(numFilename, cur);
+			auto result = PathFileExists(numFilename);
+			if (!result) {
+				break;
+			}
+			cur += 1;
+			seqNum += 1;
+		}
+	}
+	p->seqNum = seqNum;
+	return p;
 }
 
-// 入力ファイルをクローズする関数へのポインタ
-// ih		: 入力ファイルハンドル
-// 戻り値	: TRUEなら成功
-bool func_close(INPUT_HANDLE ih) {
-	GlobalFree(ih);
-	return true;
-}
+
 
 // 入力ファイルの情報を取得する関数へのポインタ
 // ih		: 入力ファイルハンドル
 // iip		: 入力ファイル情報構造体へのポインタ
 // 戻り値	: TRUEなら成功
 bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
+	if (!ih) {
+		return false;
+	}
+	auto p = (MY_HANDLE*)ih;
+	{
+		iip->flag = iip->FLAG_VIDEO;
+		iip->rate = config.rate;
+		iip->scale = config.scale;
+		iip->n = (p->seqNum >= 2) ? p->seqNum : 60;
+		iip->format_size = p->videoformatsize;
+		iip->format = (BITMAPINFOHEADER*)p->videoformat;
+	}
+	{
+		iip->audio_format_size = 0;
+	}
 	return false;
 }
 
@@ -144,10 +256,48 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 // buf		: データを読み込むバッファへのポインタ
 // 戻り値	: 読み込んだデータサイズ
 int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
-	{
-
+	if (!ih) {
+		return 0;
 	}
-	return 0;
+	auto p = (MY_HANDLE*)ih;
+	if (p->seqNum >= 2) {
+		TCHAR numFilename[STRBUF];
+		StringCchPrintf(numFilename, STRBUF, TEXT("%d.exr"), gSeqSep.begin + frame);
+
+		HANDLE f = CreateFile(numFilename,
+			GENERIC_READ,
+			FILE_SHARE_READ,
+			NULL,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+		if (f == INVALID_HANDLE_VALUE) {
+			return 0;
+		}
+		DWORD dwRead = 0;
+		auto bresult = ReadFile(f, buf, 256, &dwRead, NULL);
+		if (!bresult) {
+			return 0;
+		}
+		LiteExr parser;
+		auto result = parser.parse(nullptr, dwRead);
+		if (result <= 0) {
+			return 0;
+		}
+
+		int byteNum = parser.getData(f, (unsigned char*)buf);
+		if (byteNum <= 0) {
+			return 0;
+		}
+		return byteNum;
+	}
+
+	// 1枚のみ
+	int byteNum = p->topParser.getData(p->topFile, (unsigned char*)buf);
+	if (byteNum <= 0) {
+		return 0;
+	}
+	return byteNum;
 }
 
 
