@@ -90,7 +90,7 @@ public:
 					u8 comp = *((u8*)(buf + c));
 					this->compression = comp;
 				}
-				else if (name == "dataWindow") {
+				else if (name == "dataWindow" || name == "Window") {
 					if (valtype != "box2i") {
 						return -5;
 					}
@@ -108,7 +108,7 @@ public:
 						return -6;
 					}
 					// ignore
-					this->lineOrder = *((int*)(buf + c));
+					this->lineOrder = *((u8*)(buf + c));
 				}
 				else if (name == "pixelAspectRatio") {
 					// ignore
@@ -136,12 +136,6 @@ public:
 						c += byte5;
 						if (subname == "") {
 							break; // dict 終了
-						}
-
-						int byte6 = *((int*)(buf + c));
-						if (byte6 != 16) {
-							err = true;
-							break;
 						}
 						int* p32 = (int*)(buf + c);
 						// 2: float, 1: half

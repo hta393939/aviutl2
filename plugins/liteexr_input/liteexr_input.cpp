@@ -29,6 +29,9 @@ static CONFIG config = {
 	1,
 };
 
+TCHAR gTempText[STRBUF] = { 0 };
+u8 gTempBuffer[STRBUF] = { 0 };
+
 SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
 
 struct MY_HANDLE {
@@ -41,12 +44,11 @@ struct MY_HANDLE {
 
 
 int saveSetting(CONFIG* src) {
-	TCHAR buf[STRBUF];
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
-	WritePrivateProfileString(TEXT(APPNAME), TEXT("rate"), buf, nullptr);
+	StringCchPrintf(gTempText, STRBUF, TEXT("%d"), src->rate);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("rate"), gTempText, nullptr);
 
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
-	WritePrivateProfileString(TEXT(APPNAME), TEXT("scale"), buf, nullptr);
+	StringCchPrintf(gTempText, STRBUF, TEXT("%d"), src->scale);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("scale"), gTempText, nullptr);
 	return 1;
 }
 
@@ -170,15 +172,14 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 
-	unsigned char buf[256];
 	DWORD dwRead = 0;
-	auto bresult = ReadFile(p->topFile, buf, 256, &dwRead, NULL);
+	auto bresult = ReadFile(p->topFile, gTempBuffer, STRBUF, &dwRead, NULL);
 	if (!bresult) {
 		func_close(p);
 		return NULL;
 	}
 
-	int result = p->topParser.parse(buf, dwRead);
+	int result = p->topParser.parse(gTempBuffer, dwRead);
 	if (result <= 0) {
 		func_close(p);
 		return NULL;
@@ -206,14 +207,13 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		StringCchCopy(gLatter, STRBUF, file + gSeqSep.tail + 1);
 	}
 
-	TCHAR numFilename[STRBUF];
 	int seqNum = 0;
 	if (gSeqSep.digit >= 1) { // 1桁以上の数値が含まれる
 		int cur = gSeqSep.begin;
 		int seqNum = 0;
 		for (int i = 0; i < 10000; ++i) {
-			makeNumFileName(numFilename, cur);
-			auto result = PathFileExists(numFilename);
+			makeNumFileName(gTempText, cur);
+			auto result = PathFileExists(gTempText);
 			if (!result) {
 				break;
 			}
@@ -224,8 +224,6 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	p->seqNum = seqNum;
 	return p;
 }
-
-
 
 // 入力ファイルの情報を取得する関数へのポインタ
 // ih		: 入力ファイルハンドル
