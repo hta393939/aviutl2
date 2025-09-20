@@ -4,6 +4,7 @@
 #include "../aviutl2_sdk/input2.h"
 #include "liteexr_input.h"
 #include "../lib/util.hpp"
+#include "./liteexr.hpp"
 
 #define STRBUF (4096)
 
@@ -25,15 +26,7 @@ static CONFIG config = {
 	1,
 };
 
-SEQSEP gSeqSep = { nullptr, nullptr, nullptr, nullptr, 0, 0 };
-
-/// <summary>
-/// 当面無理
-/// </summary>
-/// <returns></returns>
-int parseExr() {
-	return -1;
-}
+SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
 
 
 int saveSetting(CONFIG* src) {
@@ -116,12 +109,14 @@ WCHAR gBaseName[STRBUF] = { 0 };
 INPUT_HANDLE func_open(LPCWSTR file) {
 	StringCchCopy(gBaseName, STRBUF, file);
 
+	LiteExr loader;
+
 	_parseSeqSep((TCHAR*)file, &gSeqSep);
 	if (gSeqSep.count >= 1) { // 連番検知した
 
 	}
 	else { // 1枚だけ
-
+		loader.parse(nullptr, 0);
 	}
 
 	return NULL;
