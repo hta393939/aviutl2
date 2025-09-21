@@ -39,6 +39,7 @@ struct MY_HANDLE {
 	int seqNum;
 	DWORD videoformatsize;
 	void* videoformat;
+	DWORD bufferByte;
 	void* buffer;
 	HANDLE topFile;
 	LiteExr topParser;
@@ -148,6 +149,9 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	}
 	p->topFile = INVALID_HANDLE_VALUE;
 
+	p->bufferByte = 8192 * 4 * 4 + 32;
+	p->buffer = GlobalAlloc(GPTR, p->bufferByte);
+
 	p->videoformatsize = sizeof(BITMAPINFOHEADER);
 	p->videoformat = GlobalAlloc(GPTR, p->videoformatsize);
 
@@ -179,6 +183,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		func_close(p);
 		return NULL;
 	}
+	p->topParser.setRefBuffer((unsigned char*)p->buffer, p->bufferByte);
 
 	{ // フォーマットの指定
 		auto bih = (BITMAPINFOHEADER*)p->videoformat;
@@ -284,6 +289,7 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 			return 0;
 		} // 先頭と解像度が一致していること
 
+		parser.setRefBuffer((unsigned char*)p->buffer, p->bufferByte);
 		int byteNum = parser.getData(f, (unsigned char*)buf);
 		CloseHandle(f);
 		if (byteNum <= 0) {

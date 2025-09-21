@@ -176,10 +176,17 @@ public:
 			}
 
 		}
+		for (int i = 0; i < 4; ++i) {
+			auto val = this->channelElementOffset[i];
+			if (val < 0 || val >= 4) {
+				return -9; // チャンネルが埋まっていないエラー
+			}
+		}
+
 		this->dwWidth = this->dataWindow.right - this->dataWindow.left + 1;
 		// bottom 
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
-		{ // 
+		{
 			int offsetNum = this->dwHeight;
 			this->dataOffset.resize(offsetNum);
 			for (int j = 0; j < offsetNum; ++j) {
@@ -193,23 +200,67 @@ public:
 	}
 
 	/// <summary>
-	/// 
+	/// 参照メモリのセットが必要。
 	/// </summary>
 	/// <param name="buf"></param>
 	/// <param name="byteNum"></param>
-	/// <param name="pdst"></param>
+	/// <param name="buf"></param>
 	/// <returns></returns>
-	int getData(HANDLE f, unsigned char* pdst) {
-		int width = this->dwWidth;
-		int height = this->dwHeight;
-		auto num = this->dataOffset.size();
-		auto byteNum = width * height * 4 * 2;
+	int getData(HANDLE f, unsigned char* buf) {
+		const int width = this->dwWidth;
+		const int height = this->dwHeight;
+		const int num = this->dataOffset.size();
+		const int byteNum = width * height * 4 * 2;
 		DWORD dwRead = 0;
-		DWORD data[8];
-		u16 u16s[16];
-		float f32s[8];
-		bool err = false;
-		ZeroMemory(pdst, byteNum);
+
+		ZeroMemory(buf, byteNum);
+
+		int elementSize = this->channelType[0] == CHTYPE_FLOAT ? 4 : 2;
+		const int reqByte = 8 + this->dwWidth * elementSize * 4;
+		if (!this->refBuffer || this->refBufferByte < reqByte) {
+			return 0;
+		}
+
+		auto p32 = (DWORD*)this->refBuffer;
+		for (int i = 0; i < num; ++i) {
+			int c = this->dataOffset[i];
+			SetFilePointer(f, c, NULL, FILE_BEGIN);
+			BOOL bresult = ReadFile(f, this->refBuffer, reqByte, &dwRead, NULL);
+			if (!bresult || (dwRead != reqByte)) {
+				return 0; // ファイル不足エラー
+			}
+			int dy = *p32;
+			if (dy >= height) {
+				return 0; // 範囲オーバーエラー
+			}
+			u16* psrc16 = (u16*)(this->refBuffer + 8);
+			float* psrcf = (float*)(this->refBuffer + 8);
+			for (int j = 0; j < 4; ++j) {
+				int elmOffset = this->channelElementOffset[j];
+				int dstOffset = width * dy * 4 + elmOffset;
+				unsigned short* pdst = ((unsigned short*)buf) + dstOffset;
+				if (elementSize == 2) {
+					for (int x = 0; x < width; ++x) {
+						*pdst = *psrc16;
+						psrc16 ++;
+						pdst += 4;
+					}
+				}
+				else {
+					for (int x = 0; x < width; ++x) {
+						*pdst = _ftob16(*psrcf);
+						psrcf ++;
+						pdst += 4;
+					}
+				}
+			}
+		}
+
+		/*
+		//DWORD data[8];
+		//u16 u16s[16];
+		//float f32s[8];
+		//bool err = false;
 		for (int i = 0; i < num; ++i) {
 			int c = this->dataOffset[i];
 
@@ -247,10 +298,17 @@ public:
 				}
 			}
 		}
+		
+
 		if (err) {
 			return 0;
-		}
+		} */
 		return byteNum;
+	}
+
+	void setRefBuffer(unsigned char* buf, int byteNum) {
+		this->refBuffer = buf;
+		this->refBufferByte = byteNum;
 	}
 
 public:
@@ -269,10 +327,14 @@ public:
 
 	int channelType[4] = { CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF };
 	//  0: R, 1: G, 2: B, 3: A
-	int channelElementOffset[4] = { 3, 2, 1, 0 };
+	int channelElementOffset[4] = { -1, -1, -1, -1 };
 
 	int version = 2;
 	// ファイル内位置
 	int offsetTableTop = -1;
+
+	// 自分では管理しないバッファへの参照ポインタ
+	unsigned char* refBuffer = nullptr;
+	int refBufferByte = 0;
 };
 
