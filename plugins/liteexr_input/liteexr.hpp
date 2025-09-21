@@ -202,24 +202,25 @@ public:
 		int width = this->dwWidth;
 		int height = this->dwHeight;
 		auto num = this->dataOffset.size();
+		auto byteNum = width * height * 4 * 2;
 		DWORD dwRead = 0;
 		DWORD data[8];
 		u16 u16s[16];
 		float f32s[8];
 		bool err = false;
+		ZeroMemory(pdst, byteNum);
 		for (int i = 0; i < num; ++i) {
 			int c = this->dataOffset[i];
 
 			SetFilePointer(f, c, NULL, FILE_BEGIN);
 			BOOL bresult = ReadFile(f, data, 8, &dwRead, NULL);
 			if (!bresult || dwRead != 8) {
+				err = true;
 				break;
 			}
-			// 
+			// Y成分
 			int dy = data[0];
-			c += 4;
 			int dataByteNum = data[1];
-			c += 4;
 
 			for (int j = 0; j < 4; ++j) {
 				int elmOffset = this->channelElementOffset[j];
@@ -231,7 +232,7 @@ public:
 					else {
 						bresult = ReadFile(f, f32s, 4, &dwRead, NULL);
 					}
-					if (!bresult || dwRead == 2) {
+					if (!bresult || (dwRead != elementSize)) {
 						err = true;
 						break;
 					}
@@ -248,15 +249,13 @@ public:
 		if (err) {
 			return 0;
 		}
-
-		return width * height * 4 * 2;
+		return byteNum;
 	}
 
 public:
-	// 
-	std::map<std::string, std::string> props;
 	BOX2I dataWindow = { 0,0,0,0 };
-	BOX2I displayWindow = { 0,0,0,0 };
+	// 使用しない
+	//BOX2I displayWindow = { 0,0,0,0 };
 	std::vector<u64> dataOffset;
 
 	unsigned int dwWidth = 0;

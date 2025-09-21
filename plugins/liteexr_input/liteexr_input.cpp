@@ -10,6 +10,7 @@
 #pragma comment(lib, "shlwapi.lib")
 
 #define STRBUF (4096)
+#define DATABUF (16384)
 
 #define APPNAME "liteexr_input"
 
@@ -24,13 +25,13 @@ typedef struct CONFIG_ {
 } CONFIG;
 static CONFIG config = {
 	TEXT("_%05d"),
-	1,
 	30,
+	1,
 	1,
 };
 
 TCHAR gTempText[STRBUF] = { 0 };
-u8 gTempBuffer[STRBUF] = { 0 };
+u8 gTempBuffer[DATABUF] = { 0 };
 
 SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
 
@@ -38,8 +39,9 @@ struct MY_HANDLE {
 	int seqNum;
 	DWORD videoformatsize;
 	void* videoformat;
-	LiteExr topParser;
+	void* buffer;
 	HANDLE topFile;
+	LiteExr topParser;
 };
 
 
@@ -104,14 +106,6 @@ bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
 	return true;
 }
 
-
-WCHAR gConfigText[1024] = {0};
-//LPCWSTR func_get_config_text() {
-//	StringCchPrintf(gConfigText, 1024, TEXT("連番追加書式: %s, RGBをAで割る: %d"), config.name, config.straighten);
-//	return gConfigText;
-//}
-
-
 WCHAR gBaseName[STRBUF] = { 0 };
 WCHAR gLatter[STRBUF] = { 0 };
 
@@ -135,6 +129,7 @@ bool func_close(INPUT_HANDLE ih) {
 	if (p->topFile) {
 		CloseHandle(p->topFile);
 	}
+	GlobalFree(p->buffer);
 	GlobalFree(p->videoformat);
 	GlobalFree(ih);
 	return true;
@@ -173,7 +168,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	}
 
 	DWORD dwRead = 0;
-	auto bresult = ReadFile(p->topFile, gTempBuffer, STRBUF, &dwRead, NULL);
+	auto bresult = ReadFile(p->topFile, gTempBuffer, DATABUF, &dwRead, NULL);
 	if (!bresult) {
 		func_close(p);
 		return NULL;
@@ -243,8 +238,9 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 	}
 	{
 		iip->audio_format_size = 0;
+		iip->audio_format = nullptr;
 	}
-	return false;
+	return true;
 }
 
 // 画像データを読み込む関数へのポインタ
@@ -258,10 +254,9 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 	}
 	auto p = (MY_HANDLE*)ih;
 	if (p->seqNum >= 2) {
-		TCHAR numFilename[STRBUF];
-		StringCchPrintf(numFilename, STRBUF, TEXT("%d.exr"), gSeqSep.begin + frame);
+		makeNumFileName(gTempText, gSeqSep.begin + frame);
 
-		HANDLE f = CreateFile(numFilename,
+		HANDLE f = CreateFile(gTempText,
 			GENERIC_READ,
 			FILE_SHARE_READ,
 			NULL,
@@ -272,17 +267,20 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 			return 0;
 		}
 		DWORD dwRead = 0;
-		auto bresult = ReadFile(f, buf, 256, &dwRead, NULL);
+		auto bresult = ReadFile(f, gTempBuffer, DATABUF, &dwRead, NULL);
 		if (!bresult) {
+			CloseHandle(f);
 			return 0;
 		}
 		LiteExr parser;
-		auto result = parser.parse(nullptr, dwRead);
+		auto result = parser.parse(gTempBuffer, dwRead);
 		if (result <= 0) {
+			CloseHandle(f);
 			return 0;
 		}
 
 		int byteNum = parser.getData(f, (unsigned char*)buf);
+		CloseHandle(f);
 		if (byteNum <= 0) {
 			return 0;
 		}
