@@ -279,6 +279,11 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 			return 0;
 		}
 
+		if ((parser.dwWidth != p->topParser.dwWidth) || (parser.dwHeight != p->topParser.dwHeight)) {
+			CloseHandle(f);
+			return 0;
+		} // 先頭と解像度が一致していること
+
 		int byteNum = parser.getData(f, (unsigned char*)buf);
 		CloseHandle(f);
 		if (byteNum <= 0) {

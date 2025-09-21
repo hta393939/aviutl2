@@ -55,10 +55,10 @@ public:
 		int c = 0;
 
 		{ // 8バイト
-			if ((buf[0] != 'v') || (buf[1] != '/') || (buf[2] != '1')) {
+			if ((buf[0] != 'v') || (buf[1] != '/') || (buf[2] != '1') || (buf[3] != 0x01)) {
 				return -1;
 			}
-
+			this->version = *((unsigned int*)(buf + 4));
 			c += 8;
 		}
 		{ // dict
@@ -71,6 +71,7 @@ public:
 				}
 				c += byte1;
 				if (byte1 == 1) {
+					this->offsetTableTop = c;
 					break; // dict の終了
 				}
 
@@ -269,5 +270,9 @@ public:
 	int channelType[4] = { CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF };
 	//  0: R, 1: G, 2: B, 3: A
 	int channelElementOffset[4] = { 3, 2, 1, 0 };
+
+	int version = 2;
+	// ファイル内位置
+	int offsetTableTop = -1;
 };
 
