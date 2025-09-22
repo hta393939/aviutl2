@@ -33,6 +33,11 @@ void _makeTable() {
 	_gk2[0] = _gk2[1];
 }
 
+/// <summary>
+/// _makeTable 実行が必要
+/// </summary>
+/// <param name="u16"></param>
+/// <returns></returns>
 float _u16tof(unsigned short u16) {
 	if (u16 == 0) {
 		return 0.0f;

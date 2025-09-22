@@ -18,9 +18,11 @@
 //		プラグイン内部変数
 //---------------------------------------------------------------------
 typedef struct CONFIG_ {
+	// 不使用
 	TCHAR name[260];
 	unsigned int rate;
 	unsigned int scale;
+	// 不使用
 	int straighten;
 } CONFIG;
 static CONFIG config = {
@@ -31,6 +33,7 @@ static CONFIG config = {
 };
 
 TCHAR gTempText[STRBUF] = { 0 };
+// ヘッダ用
 u8 gTempBuffer[DATABUF] = { 0 };
 
 SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
@@ -46,18 +49,23 @@ struct MY_HANDLE {
 };
 
 
-int saveSetting(CONFIG* src) {
+/// <summary>
+/// 未使用
+/// </summary>
+/// <param name="src"></param>
+/// <returns></returns>
+int saveSetting(CONFIG* src, WCHAR* file) {
 	StringCchPrintf(gTempText, STRBUF, TEXT("%d"), src->rate);
-	WritePrivateProfileString(TEXT(APPNAME), TEXT("rate"), gTempText, nullptr);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("rate"), gTempText, file);
 
 	StringCchPrintf(gTempText, STRBUF, TEXT("%d"), src->scale);
-	WritePrivateProfileString(TEXT(APPNAME), TEXT("scale"), gTempText, nullptr);
+	WritePrivateProfileString(TEXT(APPNAME), TEXT("scale"), gTempText, file);
 	return 1;
 }
 
-int loadSetting(CONFIG* dst) {
-	dst->rate = GetPrivateProfileInt(TEXT(APPNAME), TEXT("rate"), 30, nullptr);
-	dst->scale = GetPrivateProfileInt(TEXT(APPNAME), TEXT("scale"), 1, nullptr);
+int loadSetting(CONFIG* dst, WCHAR* file) {
+	dst->rate = GetPrivateProfileInt(TEXT(APPNAME), TEXT("rate"), 30, file);
+	dst->scale = GetPrivateProfileInt(TEXT(APPNAME), TEXT("scale"), 1, file);
 	return 1;
 }
 
@@ -237,7 +245,7 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 		iip->flag = iip->FLAG_VIDEO;
 		iip->rate = config.rate;
 		iip->scale = config.scale;
-		iip->n = (p->seqNum >= 2) ? p->seqNum : 60;
+		iip->n = (p->seqNum >= 2) ? p->seqNum : 120;
 		iip->format_size = p->videoformatsize;
 		iip->format = (BITMAPINFOHEADER*)p->videoformat;
 	}
@@ -311,18 +319,18 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
 INPUT_PLUGIN_TABLE input_plugin_table = {
-	INPUT_PLUGIN_TABLE::FLAG_VIDEO, // フラグ
-	TEXT("連番EXR入力"),			//	プラグインの名前
-	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
-	TEXT("連番EXR入力 v0.3.1 by ウサギ"),	//	プラグインの情報
-	func_open,		//	呼ばれる関数へのポインタ
+		INPUT_PLUGIN_TABLE::FLAG_VIDEO,
+	TEXT("連番EXR入力"),
+	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),
+	TEXT("連番EXR入力 v0.3.1 by ウサギ"),
+	func_open,
 	func_close,
 	func_info_get, //
-	func_read_video, // 
+	func_read_video,
 	NULL, // audio
 	func_config,		//	設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
-	NULL,
-	NULL,
+	NULL, // func_set_track
+	NULL, // func_time_to_frame,
 };
 
 //---------------------------------------------------------------------
@@ -331,3 +339,4 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 EXTERN_C INPUT_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTable(void) {
 	return &input_plugin_table;
 }
+

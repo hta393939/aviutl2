@@ -323,13 +323,13 @@ public:
 	// 0: 
 	int compression = 0;
 	// 0: 
-	int lineOrder = 0;
+	int lineOrder = -1;
 
 	int channelType[4] = { CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF };
 	//  0: R, 1: G, 2: B, 3: A
 	int channelElementOffset[4] = { -1, -1, -1, -1 };
 
-	int version = 2;
+	int version = -1;
 	// ファイル内位置
 	int offsetTableTop = -1;
 
