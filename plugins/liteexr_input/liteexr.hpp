@@ -10,6 +10,11 @@ typedef unsigned char u8;
 #define CHTYPE_HALF (1)
 #define CHTYPE_FLOAT (2)
 
+// half float 1.0 の2バイトLE表現
+#define HALF_ONE_BIT (0x3c00)
+
+#define ERR_TYPEMISMATCH (-5)
+
 struct BOX2I {
 	int left;
 	int top;
@@ -51,7 +56,7 @@ public:
 	/// <param name="byteNum"></param>
 	/// <returns></returns>
 	int parse(unsigned char* buf, int byteNum) {
-		bool err = false;
+		int errCode = 0;
 		int c = 0;
 
 		{ // 8バイト
@@ -80,20 +85,20 @@ public:
 					return -3; // 
 				}
 				c += byte2;
-
-				int byte3 = *((int*)(buf + c)); // バイト数
+				// データのバイト数
+				int dataByte = *((int*)(buf + c));
 				c += 4;
 
 				if (name == "compression") {
 					if (valtype != "compression") {
-						return -4;
+						return ERR_TYPEMISMATCH;
 					}
 					u8 comp = *((u8*)(buf + c));
 					this->compression = comp;
 				}
-				else if (name == "dataWindow" || name == "Window") {
+				else if (name == "dataWindow") {
 					if (valtype != "box2i") {
-						return -5;
+						return ERR_TYPEMISMATCH;
 					}
 					auto p = (int*)(buf + c);
 					this->dataWindow.left = p[0];
@@ -102,16 +107,27 @@ public:
 					this->dataWindow.bottom = p[3];
 				}
 				else if (name == "displayWindow") {
+					if (valtype != "box2i") {
+						return ERR_TYPEMISMATCH;
+					}
 					// ignore
+					auto p = (int*)(buf + c);
+					this->displayWindow.left = p[0];
+					this->displayWindow.top = p[1];
+					this->displayWindow.right = p[2];
+					this->displayWindow.bottom = p[3];
 				}
 				else if (name == "lineOrder") {
 					if (valtype != "lineOrder") {
-						return -6;
+						return ERR_TYPEMISMATCH;
 					}
 					// ignore
 					this->lineOrder = *((u8*)(buf + c));
 				}
 				else if (name == "pixelAspectRatio") {
+					if (valtype != "float") {
+						return ERR_TYPEMISMATCH;
+					}
 					// ignore
 				}
 				else if (name == "screenWindowCenter") {
@@ -122,7 +138,7 @@ public:
 				}
 				else if (name == "channels") {
 					if (valtype != "chlist") {
-						return -7;
+						return ERR_TYPEMISMATCH;
 					}
 
 					// dict
@@ -131,7 +147,7 @@ public:
 						std::string subname;
 						auto byte5 = this->_parseNullTerm(buf + c, subname);
 						if (byte5 <= 0) {
-							err = true;
+							errCode = -11;
 							break; // 
 						}
 						c += byte5;
@@ -141,7 +157,9 @@ public:
 						int* p32 = (int*)(buf + c);
 						// 2: float, 1: half
 						int dataType = p32[0];
-						
+						//p32[1]; // 0
+						//p32[2]; // 1
+						//p32[3]; // 1						
 						c += 16;
 
 						int index = -1;
@@ -157,8 +175,11 @@ public:
 						else if (subname == "B") {
 							index = 2;
 						}
+						else if (subname == "V") {
+							index = 4;
+						}
 						if (index < 0) {
-							err = true; // 知らないチャンネル名
+							errCode = -12; // 知らないチャンネル名
 							break;
 						}
 						this->channelType[order] = dataType;
@@ -167,24 +188,36 @@ public:
 						order += 1;
 					}
 
-					if (err) {
-						return -8;
+					if (errCode < 0) {
+						return errCode;
 					}
+					dataByte = 0;
 				}
 
-				c += byte3;
+				c += dataByte;
 			}
 
 		}
+		int channelCount = 0;
 		for (int i = 0; i < 4; ++i) {
 			auto val = this->channelElementOffset[i];
-			if (val < 0 || val >= 4) {
-				return -9; // チャンネルが埋まっていないエラー
+			if (val == 4) {
+				this->channelElementOffset[0] = 0;
+				channelCount = 1;
+				break;
 			}
+			if (val < 0) {
+				if (channelCount < 3) {
+					return -9; // チャンネルが埋まっていないエラー
+				}
+				break;
+			}
+			channelCount += 1;
 		}
+		this->channelCount = channelCount;
 
 		this->dwWidth = this->dataWindow.right - this->dataWindow.left + 1;
-		// bottom 
+		// bottom は内
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
 		{
 			int offsetNum = this->dwHeight;
@@ -196,7 +229,7 @@ public:
 			}
 		}
 
-		return 1;
+		return channelCount;
 	}
 
 	/// <summary>
@@ -209,18 +242,20 @@ public:
 	int getData(HANDLE f, unsigned char* buf) {
 		const int width = this->dwWidth;
 		const int height = this->dwHeight;
+		const int chNum = this->channelCount;
 		const int num = this->dataOffset.size();
-		const int byteNum = width * height * 4 * 2;
-		DWORD dwRead = 0;
+		// 書き込み先
+		const int byteNum = width * height * chNum * 2;
+		// 読み取り
+		const int elementSize = this->channelType[0] == CHTYPE_FLOAT ? 4 : 2;
+		const int reqByte = 8 + this->dwWidth * elementSize * chNum;
 
 		ZeroMemory(buf, byteNum);
-
-		int elementSize = this->channelType[0] == CHTYPE_FLOAT ? 4 : 2;
-		const int reqByte = 8 + this->dwWidth * elementSize * 4;
 		if (!this->refBuffer || this->refBufferByte < reqByte) {
 			return 0;
 		}
 
+		DWORD dwRead = 0;
 		auto p32 = (DWORD*)this->refBuffer;
 		for (int i = 0; i < num; ++i) {
 			int c = this->dataOffset[i];
@@ -235,25 +270,64 @@ public:
 			}
 			u16* psrc16 = (u16*)(this->refBuffer + 8);
 			float* psrcf = (float*)(this->refBuffer + 8);
-			for (int j = 0; j < 4; ++j) {
-				int elmOffset = this->channelElementOffset[j];
-				int dstOffset = width * dy * 4 + elmOffset;
-				unsigned short* pdst = ((unsigned short*)buf) + dstOffset;
+			if (chNum >= 3) {
+				for (int j = 0; j < chNum; ++j) {
+					int elmOffset = this->channelElementOffset[j];
+					int dstOffset = width * dy * 4 + elmOffset;
+					unsigned short* pdst = ((unsigned short*)buf) + dstOffset;
+					if (elementSize == 2) {
+						for (int x = 0; x < width; ++x) {
+							*pdst = *psrc16;
+							psrc16++;
+							pdst += 4;
+						}
+					}
+					else {
+						for (int x = 0; x < width; ++x) {
+							*pdst = _ftob16(*psrcf);
+							psrcf++;
+							pdst += 4;
+						}
+					}
+				}
+				if (chNum == 3) {
+					int dstOffset = width * dy * 4 + 3;
+					unsigned short* pdst = ((unsigned short*)buf) + dstOffset;
+					for (int x = 0; x < width; ++x) {
+						*pdst = HALF_ONE_BIT;
+						pdst += 4;
+					}
+				}
+			}
+			else {
+				// グレースケール
+				int dstOffset = width * dy * 4;
+				unsigned short* pdst = ((unsigned short*)buf);
 				if (elementSize == 2) {
 					for (int x = 0; x < width; ++x) {
-						*pdst = *psrc16;
-						psrc16 ++;
+						auto src = *psrc16;
+						pdst[0] = src;
+						pdst[1] = src;
+						pdst[2] = src;
+						pdst[3] = HALF_ONE_BIT;
+						psrc16++;
 						pdst += 4;
 					}
 				}
 				else {
 					for (int x = 0; x < width; ++x) {
-						*pdst = _ftob16(*psrcf);
-						psrcf ++;
+						auto src = _ftob16(*psrcf);
+						pdst[0] = src;
+						pdst[1] = src;
+						pdst[2] = src;
+						pdst[3] = HALF_ONE_BIT;
+						psrcf++;
 						pdst += 4;
 					}
 				}
+
 			}
+
 		}
 
 		/*
@@ -314,7 +388,7 @@ public:
 public:
 	BOX2I dataWindow = { 0,0,0,0 };
 	// 使用しない
-	//BOX2I displayWindow = { 0,0,0,0 };
+	BOX2I displayWindow = { 0,0,0,0 };
 	std::vector<u64> dataOffset;
 
 	unsigned int dwWidth = 0;
@@ -324,6 +398,8 @@ public:
 	int compression = 0;
 	// 0: 
 	int lineOrder = -1;
+
+	int channelCount = 0;
 
 	int channelType[4] = { CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF };
 	//  0: R, 1: G, 2: B, 3: A
