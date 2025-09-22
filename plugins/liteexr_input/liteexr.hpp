@@ -147,9 +147,15 @@ public:
 					// ignore
 				}
 				else if (name == "screenWindowCenter") {
+					if (valtype != "v2f") {
+						return ERR_TYPEMISMATCH;
+					}
 					// ignore
 				}
 				else if (name == "screenWindowWidth") {
+					if (valtype != "float") {
+						return ERR_TYPEMISMATCH;
+					}
 					// ignore
 				}
 				else if (name == "channels") {
@@ -167,13 +173,13 @@ public:
 							break; // 
 						}
 						c += byte5;
-						if (subname == "") {
+						if (byte5 == 1) {
 							break; // dict 終了
 						}
 						int* p32 = (int*)(buf + c);
 						// 2: float, 1: half
 						int pixelType = p32[0];
-						//p32[1]; // 0 pLinear and three reserve
+						//p32[1]; // 0 pLinear and three reserved
 						//p32[2]; // 1 xSampling
 						//p32[3]; // 1 ySampling			
 						c += 16;
@@ -194,13 +200,14 @@ public:
 						else if (subname == "V") {
 							index = 4;
 						}
-						if (index < 0) {
+						// 他、ViewLayer.Combined.A など
+						if (index >= 0 && index <= 4) {
+							this->pixelType[order] = pixelType;
+							this->channelElementOffset[order] = index;
+						} else {
 							errCode = -12; // 知らないチャンネル名
 							break;
 						}
-						this->pixelType[order] = pixelType;
-						this->channelElementOffset[order] = index;
-
 						order += 1;
 					}
 
@@ -214,10 +221,14 @@ public:
 			}
 
 		}
+
 		int channelCount = 0;
 		for (int i = 0; i < 4; ++i) {
 			auto val = this->channelElementOffset[i];
 			if (val == 4) {
+				if (i != 0) {
+					return -14; // Vチャンネルは1つのみ対応
+				}
 				this->channelElementOffset[0] = 0;
 				channelCount = 1;
 				break;
@@ -235,6 +246,10 @@ public:
 		this->dwWidth = this->dataWindow.right - this->dataWindow.left + 1;
 		// bottom は内
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
+
+		if (this->compression != NO_COMPRESSION) {
+			return -13;
+		}
 
 		/*
 		{
