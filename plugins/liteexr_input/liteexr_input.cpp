@@ -33,7 +33,7 @@ static CONFIG config = {
 };
 
 TCHAR gTempText[STRBUF] = { 0 };
-// ヘッダ用
+// 縦が決まる前のヘッダ用
 u8 gTempBuffer[DATABUF] = { 0 };
 
 SEQSEP gSeqSep = { nullptr, -1, -1, -1, 0, 0 };
@@ -229,6 +229,11 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		}
 	}
 	p->seqNum = seqNum;
+
+	if (p->seqNum < 2) {
+		p->topParser.loadOffsetTable(p->topFile);
+	}
+
 	return p;
 }
 
@@ -298,6 +303,7 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 		} // 先頭と解像度が一致していること
 
 		parser.setRefBuffer((unsigned char*)p->buffer, p->bufferByte);
+		parser.loadOffsetTable(f);
 		int byteNum = parser.getData(f, (unsigned char*)buf);
 		CloseHandle(f);
 		if (byteNum <= 0) {

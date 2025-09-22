@@ -7,13 +7,29 @@ typedef unsigned __int64 u64;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
-#define CHTYPE_HALF (1)
-#define CHTYPE_FLOAT (2)
-
 // half float 1.0 の2バイトLE表現
 #define HALF_ONE_BIT (0x3c00)
 
 #define ERR_TYPEMISMATCH (-5)
+
+enum {
+	PIXELTYPE_UINT = 0,
+	PIXELTYPE_HALF = 1,
+	PIXELTYPE_FLOAT = 2,
+};
+
+enum {
+	NO_COMPRESSION = 0,
+	RLE_COMPRESSION,
+	ZIPS_COMPRESSION,
+	ZIP_COMPRESSION,
+};
+
+enum {
+	INCREASING_Y = 0,
+	DECREASING_Y = 1,
+	RANDOM_Y = 2,
+};
 
 struct BOX2I {
 	int left;
@@ -156,10 +172,10 @@ public:
 						}
 						int* p32 = (int*)(buf + c);
 						// 2: float, 1: half
-						int dataType = p32[0];
-						//p32[1]; // 0
-						//p32[2]; // 1
-						//p32[3]; // 1						
+						int pixelType = p32[0];
+						//p32[1]; // 0 pLinear and three reserve
+						//p32[2]; // 1 xSampling
+						//p32[3]; // 1 ySampling			
 						c += 16;
 
 						int index = -1;
@@ -182,7 +198,7 @@ public:
 							errCode = -12; // 知らないチャンネル名
 							break;
 						}
-						this->channelType[order] = dataType;
+						this->pixelType[order] = pixelType;
 						this->channelElementOffset[order] = index;
 
 						order += 1;
@@ -219,6 +235,8 @@ public:
 		this->dwWidth = this->dataWindow.right - this->dataWindow.left + 1;
 		// bottom は内
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
+
+		/*
 		{
 			int offsetNum = this->dwHeight;
 			this->dataOffset.resize(offsetNum);
@@ -227,9 +245,31 @@ public:
 				this->dataOffset[j] = val;
 				c += 8;
 			}
-		}
+		}*/
 
 		return channelCount;
+	}
+
+
+	/// <summary>
+	/// offsetTable をファイルからベクターに読み取る
+	/// </summary>
+	/// <param name="buf"></param>
+	/// <param name="byteNum"></param>
+	/// <returns></returns>
+	int loadOffsetTable(HANDLE f) {
+		if (f == INVALID_HANDLE_VALUE) {
+			return -1;
+		}
+		SetFilePointer(f, this->offsetTableTop, NULL, FILE_BEGIN);
+		this->dataOffset.resize(this->dwHeight);
+		int reqByte = this->dwHeight * 8;
+		DWORD dwRead = 0;
+		auto bresult = ReadFile(f, this->dataOffset.data(), reqByte, &dwRead, NULL);
+		if (!bresult || reqByte != dwRead) {
+			return -2;
+		}
+		return this->dwHeight;
 	}
 
 	/// <summary>
@@ -247,7 +287,7 @@ public:
 		// 書き込み先
 		const int byteNum = width * height * chNum * 2;
 		// 読み取り
-		const int elementSize = this->channelType[0] == CHTYPE_FLOAT ? 4 : 2;
+		const int elementSize = this->pixelType[0] == PIXELTYPE_HALF ? 2 : 4;
 		const int reqByte = 8 + this->dwWidth * elementSize * chNum;
 
 		ZeroMemory(buf, byteNum);
@@ -302,7 +342,7 @@ public:
 			else {
 				// グレースケール
 				int dstOffset = width * dy * 4;
-				unsigned short* pdst = ((unsigned short*)buf);
+				unsigned short* pdst = ((unsigned short*)buf) + dstOffset;
 				if (elementSize == 2) {
 					for (int x = 0; x < width; ++x) {
 						auto src = *psrc16;
@@ -401,7 +441,7 @@ public:
 
 	int channelCount = 0;
 
-	int channelType[4] = { CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF, CHTYPE_HALF };
+	int pixelType[4] = { -1, -1, -1, -1 };
 	//  0: R, 1: G, 2: B, 3: A
 	int channelElementOffset[4] = { -1, -1, -1, -1 };
 
