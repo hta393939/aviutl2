@@ -10,6 +10,8 @@
 
 #define APP_NAME "description_input"
 
+#define WAVE_FORMAT_IEEE_FLOAT (3)
+
 #define STRBUF (4096)
 
 //---------------------------------------------------------------------
@@ -43,15 +45,8 @@ struct MY_FILE_HANDLE {
 	LONG videoformatsize;
 	void* audioformat;
 	LONG audioformatsize;
-	unsigned char head[64];
-	// PCMだと44(WAVEFORMATEXだと46)
-	int indataStart;
-	DWORD byteData;
+
 	DWORD lengthBySample;
-	// 読み取り時に使用
-	DWORD elementSize;
-	// ファイル側のチャンネル数
-	DWORD fileNumChannel;
 
 	HANDLE buffer;
 	int maxBufferByte;
@@ -204,8 +199,6 @@ bool func_close(INPUT_HANDLE ih) {
 	return true;
 }
 
-#define WAVE_FORMAT_IEEE_FLOAT (3)
-
 // 入力ファイルをオープンする関数へのポインタ
 // file		: ファイル名
 INPUT_HANDLE func_open(LPCWSTR file) {
@@ -236,13 +229,14 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	{
 		auto pv = (BITMAPINFOHEADER*)p->videoformat;
 		pv->biSize = sizeof(p->videoformatsize);
-		pv->biWidth = 1024;
-		pv->biHeight = 64;
+		pv->biWidth = 256;
+		pv->biHeight = 256;
 		pv->biBitCount = 32;
 		pv->biClrUsed = 0;
 		pv->biPlanes = 1;
 		pv->biCompression = BI_RGB;
 	}
+
 
 	p->hFile = CreateFile(file,
 		FILE_GENERIC_READ,
@@ -256,45 +250,9 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 
-	// JUNKチャンクには対応しない
-	// オフセットの検知
-	int offset = 0;
-	auto result = ReadFile(p->hFile, p->head, 48, NULL, NULL);
-	if (result == FALSE) {
-		func_close(p);
-		return NULL;
-	}
-	DWORD* p32 = (DWORD*)p->head;
-	if (p32[0] != MAKEFOURCC('R', 'I', 'F', 'F') || p32[2] != MAKEFOURCC('W','A','V','E')) {
-		func_close(p);
-		return NULL;
-	}
-	// PCM時
-	if (p32[3] != MAKEFOURCC('f','m','t',' ') || p32[9] != MAKEFOURCC('d', 'a', 't', 'a')) {
-		func_close(p);
-		return NULL;
-	}
-	p->byteData = p32[10];
-	p->indataStart = 44;
-
-	auto pfh = (WAVEFORMATEX*)(p->head + 20);
 	auto pa = (WAVEFORMATEX*)p->audioformat;
-#if (SINGLE_CHANNEL != 0)
-	pa->nChannels = 1;
-#else
-#if (TWO_CHANNEL != 0)
 	pa->nChannels = 2;
-#else
-	pa->nChannels = pfh->nChannels;
-#endif
-#endif
-	pa->nSamplesPerSec = pfh->nSamplesPerSec;
-	if (pfh->wFormatTag != WAVE_FORMAT_PCM && pfh->wFormatTag != WAVE_FORMAT_IEEE_FLOAT) {
-		func_close(p);
-		return NULL;
-	}
-	p->fileNumChannel = pfh->nChannels;
-	p->elementSize = (pfh->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ? 4 : ((pfh->wBitsPerSample + 7) / 8);
+	pa->nSamplesPerSec = 48000;
 
 	// 書き出しはfloatとする
 	pa->wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
@@ -303,7 +261,7 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	pa->wBitsPerSample = 32;
 	pa->cbSize = 0;
 	
-	p->lengthBySample = p->byteData / p->elementSize / p->fileNumChannel;
+	p->lengthBySample = 48000;
 	return p;
 }
 
@@ -333,8 +291,8 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 	auto pa = (WAVEFORMATEX*)p->audioformat;
 	const int chIndex = config.audioTrack / 2;
 	const int writeIndex = config.audioTrack % 2;
-	const int fileChNum = p->fileNumChannel;
-	const int readBlockByte = fileChNum * p->elementSize;
+	const int fileChNum = 3;
+	const int readBlockByte = fileChNum * 3;
 
 	// サンプル単位時刻での開始時刻
 	const int ratev = config.rate;
@@ -354,24 +312,6 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		filestart = 0;
 	}
 
-	DWORD reqBufferByte = filelength * fileChNum * p->elementSize;
-	if (p->maxBufferByte < reqBufferByte) {
-		reqBufferByte = p->maxBufferByte;
-	}
-	SetFilePointer(p->hFile,
-		p->indataStart + filestart * fileChNum * p->elementSize,
-		NULL, FILE_BEGIN);
-	int bufferOffsetTime = (timestart < 0) ? timestart : 0;
-	DWORD read = 0;
-	auto resultbuf = ReadFile(p->hFile,
-		((unsigned char*)p->buffer) + bufferOffsetTime * readBlockByte,
-		reqBufferByte, &read, NULL);
-	if (resultbuf == FALSE) {
-		return 0;
-	}
-	int realLength = read / readBlockByte;
-
-
 	int width = pv->biWidth;
 	int height = pv->biHeight;
 	int pxNum = width * height;
@@ -389,7 +329,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 		float minVal = 9999.0f;
 		int count = 0;
 		int dx = 0;
-		for (int x = 0; x < realLength; ++x) {
+		for (int x = 0; x < 0; ++x) {
 			if (count >= config.count) {
 				if (minVal <= maxVal) {
 					// ドット打ち
@@ -419,24 +359,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 				continue; // 無効値
 			}
 			int curBufferOffset = curTime - filestart;
-			if (curBufferOffset >= bufferOffsetTime + realLength) {
-				continue; // 無効値
-			}
 			float fval = 0.0f;
-			if (p->elementSize == 2) {
-				short* p16 = ((short*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-				fval = ((float)*p16) / 32768.0f;
-			}
-			else if (p->elementSize == 4) {
-				// 未実装
-			}
-			else if (p->elementSize == 1) {
-				// 未実装
-			}
-			else {
-				float* pf = ((float*)p->buffer) + curBufferOffset * fileChNum + chIndex;
-				fval = *pf;
-			}
 			maxVal = (fval >= maxVal) ? fval : maxVal;
 			minVal = (fval <= minVal) ? fval : minVal;
 		}
@@ -464,7 +387,7 @@ int makeView(MY_FILE_HANDLE* p, int frame, void* buf) {
 int makeData(MY_FILE_HANDLE* p, int frame, void* buf) {
 	auto pv = (BITMAPINFOHEADER*)p->videoformat;
 	auto pa = (WAVEFORMATEX*)p->audioformat;
-	auto fileChNum = p->fileNumChannel;
+	auto fileChNum = 3;
 	//int pxNum = p->videoformat;
 
 	/*
@@ -518,112 +441,18 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 int func_read_audio(INPUT_HANDLE ih, int start, int length, void* buf) {
 	auto p = (MY_FILE_HANDLE*)ih;
 	auto ph = (WAVEFORMATEX*)p->audioformat;
-	const int fileChNum = p->fileNumChannel;
+	const int fileChNum = 3;
 	const int chIndex = config.audioTrack / 2;
 	const int writeIndex = chIndex % 2;
 	float* dst = (float*)buf;
 	int sampleNum = 0;
-
-	DWORD reqBufferByte = length * fileChNum * p->elementSize;
-	if (p->maxBufferByte < reqBufferByte) {
-		reqBufferByte = p->maxBufferByte;
-	}
-	SetFilePointer(p->hFile,
-		p->indataStart + start * fileChNum * p->elementSize,
-		NULL, FILE_BEGIN);
-	DWORD read = 0;
-	auto resultbuf = ReadFile(p->hFile, p->buffer, reqBufferByte, &read, NULL);
-	if (resultbuf == FALSE) {
-		return 0;
-	}
-	const int realLength = read / fileChNum / p->elementSize;
-
-	if (p->elementSize == 2) {
-		short* psrc = ((short*)p->buffer) + chIndex;
-		for (int i = 0; i < realLength; ++i) {
-			float val = ((float)*psrc) / 32768.0f;
-#if (SINGLE_CHANNEL != 0)
-			*dst = val;
-			++dst;
-			++sampleNum;
-#else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
-			dst[writeIndex] = val;
-			dst += 2;
-			sampleNum += 2;
-#endif
-
-			psrc += fileChNum;
-		}
-	}
-	else if (p->elementSize == 1) { // 未確認
-		int byteOffset = chIndex;
-		for (int i = 0; i < realLength; ++i) {
-			unsigned char val = 0;
-			CopyMemory(&val, ((unsigned char*)p->buffer) + byteOffset, 1);
-			float fval = (((float)val) - 128.0f) / 128.0f;
-#if (SINGLE_CHANNEL!=0)
-			*dst = fval;
-			++dst;
-			++sampleNum;
-#else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
-			dst[writeIndex] = fval;
-			dst += 2;
-			sampleNum += 2;
-#endif
-
-			byteOffset += fileChNum * 1;
-		}
-	}
-	else if (p->elementSize == 3) { // 未確認
-		int byteOffset = chIndex * 3;
-		for (int i = 0; i < realLength; ++i) {
-			int val = 0;
-			CopyMemory(&val, ((unsigned char*)p->buffer) + byteOffset, 3);
-			val = (val << 8) >> 8;
-			float fval = ((float)val) / ((float)0x1000000);
-#if (SINGLE_CHANNEL!=0)
-			*dst = fval;
-			++dst;
-			++sampleNum;
-#else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
-			dst[writeIndex] = fval;
-			dst += 2;
-			sampleNum += 2;
-#endif
-			byteOffset += fileChNum * 3;
-		}
-	}
-	else { // float 扱い
-		float* psrc = ((float*)p->buffer) + chIndex;
-		for (int i = 0; i < realLength; ++i) {
-			float val = *psrc;
-#if (SINGLE_CHANNEL != 0)
-			*dst = val;
-			++dst;
-			++sampleNum;
-#else
-			dst[0] = 0.0f;
-			dst[1] = 0.0f;
-			dst[writeIndex] = val;
-			dst += 2;
-			sampleNum += 2;
-#endif
-			psrc += fileChNum;
-		}
-	}
 	return sampleNum;
 }
 
 int func_set_track(INPUT_HANDLE ih, int type, int index) {
 	auto p = (MY_FILE_HANDLE*)ih;
 	auto pa = (WAVEFORMATEX*)p->audioformat;
-	int numCh = p->fileNumChannel;
+	int numCh = 3;
 	switch (type) {
 	case INPUT_PLUGIN_TABLE::TRACK_TYPE_VIDEO:
 		if (index < 0) {
@@ -656,26 +485,22 @@ int func_time_to_frame(INPUT_HANDLE ih, double time) {
 	return 0;
 }
 
-
-//---------------------------------------------------------------------
-//		出力プラグイン構造体定義
-//---------------------------------------------------------------------
 INPUT_PLUGIN_TABLE input_plugin_table = {
 	INPUT_PLUGIN_TABLE::FLAG_VIDEO
-		//| INPUT_PLUGIN_TABLE::FLAG_CONCURRENT
+		| INPUT_PLUGIN_TABLE::FLAG_CONCURRENT
 		| INPUT_PLUGIN_TABLE::FLAG_MULTI_TRACK
-		| INPUT_PLUGIN_TABLE::FLAG_AUDIO, // フラグ
-	TEXT("description入力"),			//	プラグインの名前
-	TEXT("desc File (*.desc)\0*.desc\0AllFile (*.*)\0*.*\0"),		//	ファイルのフィルタ
-	TEXT("description入力 v0.3.1 by ウサギ"),	//	プラグインの情報
-	func_open,		//	呼ばれる関数へのポインタ
+		| INPUT_PLUGIN_TABLE::FLAG_AUDIO,
+	TEXT("description入力"),
+	TEXT("desc File (*.desc)\0*.desc\0AllFile (*.*)\0*.*\0"),
+	TEXT("description入力 v0.3.1 by ウサギ"),
+	func_open,
 	func_close,
 	func_info_get, //
 	func_read_video, // 
 	func_read_audio, // 
 	func_config,	//	設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	func_set_track,
-	NULL, //func_time_to_frame,
+	func_time_to_frame,
 };
 
 //---------------------------------------------------------------------
