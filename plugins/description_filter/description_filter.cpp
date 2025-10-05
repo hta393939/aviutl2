@@ -223,12 +223,12 @@ bool func_audio_proc(FILTER_PROC_AUDIO* audio) {
 	return true;
 }
 
-FILTER_PLUGIN_TABLE input_plugin_table = {
+FILTER_PLUGIN_TABLE filter_plugin_table = {
 	FILTER_PLUGIN_TABLE::FLAG_VIDEO
 		| FILTER_PLUGIN_TABLE::FLAG_INPUT
 		| FILTER_PLUGIN_TABLE::FLAG_AUDIO,
 	TEXT("descriptionメディアオブジェクト"),
-	nullptr,
+	TEXT("混合"),
 	TEXT("descriptionメディアオブジェクト v0.3.1 by ウサギ"),
 	items,
 	func_video_proc, 
@@ -257,8 +257,8 @@ EXTERN_C __declspec(dllexport) void UninitializePlugin() {
 //---------------------------------------------------------------------
 //		出力プラグイン構造体のポインタを渡す関数
 //---------------------------------------------------------------------
-EXTERN_C FILTER_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetInputPluginTable(void) {
-	return &input_plugin_table;
+EXTERN_C FILTER_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetFilterPluginTable(void) {
+	return &filter_plugin_table;
 }
 
 

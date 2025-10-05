@@ -193,15 +193,17 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 	}
 	p->topParser.setRefBuffer((unsigned char*)p->buffer, p->bufferByte);
 
+	auto width = p->topParser.dwWidth;
+	auto height = p->topParser.dwHeight;
 	{ // フォーマットの指定
 		auto bih = (BITMAPINFOHEADER*)p->videoformat;
-		bih->biSize = 0;
-		bih->biWidth = p->topParser.dwWidth;
-		bih->biHeight = p->topParser.dwHeight;
+		bih->biSize = sizeof(BITMAPINFOHEADER);
+		bih->biWidth = width;
+		bih->biHeight = height;
 		bih->biPlanes = 1;
-		bih->biBitCount = 2 * 4;
+		bih->biBitCount = 64;
 		bih->biCompression = MAKEFOURCC('H', 'F', '6', '4');
-		bih->biSizeImage = 0;
+		bih->biSizeImage = width * height * 8;
 		bih->biClrUsed = 0;
 		bih->biClrImportant = 0;
 	}
@@ -328,7 +330,7 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 		INPUT_PLUGIN_TABLE::FLAG_VIDEO,
 	TEXT("連番EXR入力"),
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),
-	TEXT("連番EXR入力 v0.3.1 by ウサギ"),
+	TEXT("連番EXR入力 v0.4.1 by ウサギ"),
 	func_open,
 	func_close,
 	func_info_get, //
@@ -338,6 +340,14 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 	NULL, // func_set_track
 	NULL, // func_time_to_frame,
 };
+
+EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version) {
+	return true;
+}
+
+EXTERN_C __declspec(dllexport) void UninitializePlugin() {
+	return;
+}
 
 //---------------------------------------------------------------------
 //		出力プラグイン構造体のポインタを渡す関数

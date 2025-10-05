@@ -1,5 +1,5 @@
 ﻿EXPORTS
-	GetInputPluginTable @1
+	GetFilterPluginTable @1
 	InitializePlugin @2
 	UninitializePlugin @3
 
