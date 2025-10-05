@@ -168,6 +168,7 @@
         obj.layer : オブジェクトが配置されているレイヤー (ReadOnly) ※描画対象のオブジェクトのレイヤー位置
         obj.index : 複数オブジェクト時の番号 (ReadOnly) ※個別オブジェクト用
         obj.num : 複数オブジェクト時の数(1=単体オブジェクト/0=不定) (ReadOnly) ※個別オブジェクト用
+        obj.id : オブジェクトのID (ReadOnly) ※アプリ起動毎の固有ID
 
 
 - 関数 -
@@ -763,7 +764,7 @@
 
         	    ◇バージョン情報を取得
 		                version = obj.getinfo("version")
-	    	            戻り値 : バージョン番号
+	    	            戻り値 : 本体のバージョン番号
 
         ○obj.interpolation(time,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
                 連続した点p0(x0,y0,z0),p1(x1,y1,z1),p2(x2,y2,z2),p3(x3,y3,z3)から
@@ -979,6 +980,10 @@
         テキスト設定項目に入力したダブルクォート文字が正しく変数に反映されないのを修正
         obj.getpixeldata(),obj.putpixeldata()を追加
         obj.getinfo("version")を追加
+
+        [2025/10/5]
+        テキスト設定項目に入力したバックスラッシュ文字が正しく変数に反映されないのを修正
+        obj.idを追加
 
 
 - Lua/LuaJITのバイナリについて -
