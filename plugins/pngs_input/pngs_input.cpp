@@ -186,25 +186,22 @@ INPUT_HANDLE func_open(LPCWSTR file) {
 		return NULL;
 	}
 
-	/*
 	int result = p->topParser.parse(gTempBuffer, dwRead);
 	if (result <= 0) {
 		func_close(p);
 		return NULL;
 	}
-	p->topParser.setRefBuffer((unsigned char*)p->buffer, p->bufferByte);
-	*/
 
 	{ // フォーマットの指定
 		auto bih = (BITMAPINFOHEADER*)p->videoformat;
 		bih->biSize = 0;
-		bih->biWidth = 512;
-		bih->biHeight = 512;
-		//bih->biWidth = p->topParser.dwWidth;
-		//bih->biHeight = p->topParser.dwHeight;
+		//bih->biWidth = 512;
+		//bih->biHeight = 512;
+		bih->biWidth = p->topParser.dwWidth;
+		bih->biHeight = p->topParser.dwHeight;
 		bih->biPlanes = 1;
-		bih->biBitCount = 2 * 4;
-		bih->biCompression = MAKEFOURCC('H', 'F', '6', '4');
+		bih->biBitCount = 32;
+		bih->biCompression = BI_RGB;
 		bih->biSizeImage = 0;
 		bih->biClrUsed = 0;
 		bih->biClrImportant = 0;
