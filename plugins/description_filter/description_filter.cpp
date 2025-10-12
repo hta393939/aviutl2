@@ -79,109 +79,19 @@ int resolvePath(HMODULE hModule) {
 	return 1;
 }
 
-int resolveIni(const TCHAR* src, TCHAR* dst, int maxNum) {
-	StringCchCopy(dst, maxNum, src);
-	int len = 0;
-	for (int i = 0; i < maxNum; ++i) {
-		if (dst[i] == 0) {
-			len = i;
-			break;
-		}
-	}
-	for (int i = len - 1; i >= 0; --i) {
-		auto val = dst[i];
-		if (val == '.') {
-			StringCchCopy(dst + i, STRBUF - i - 1, TEXT(".ini"));
-			return 1;
-		}
-	}
-	return -1;
-}
-
-int saveSetting(const CONFIG* src, const TCHAR* target) {
-	return 1;
-	TCHAR buf[STRBUF];
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->rate);
-	WritePrivateProfileString(TEXT(APP_NAME), TEXT("rate"), buf, target);
-
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->scale);
-	WritePrivateProfileString(TEXT(APP_NAME), TEXT("scale"), buf, target);
-
-	StringCchPrintf(buf, STRBUF, TEXT("%d"), src->count);
-	WritePrivateProfileString(TEXT(APP_NAME), TEXT("count"), buf, target);
-	return 1;
-}
-
-/// <summary>
-/// 
-/// </summary>
-/// <param name="dst">格納済み値はデフォルト値とする</param>
-/// <param name="target"></param>
-/// <returns></returns>
-int loadSetting(CONFIG* dst, const TCHAR* target) {
-	return 1;
-	dst->rate = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("rate"), dst->rate, target);
-	dst->scale = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->scale, target);
-	dst->count = GetPrivateProfileInt(TEXT(APP_NAME), TEXT("scale"), dst->count, target);
-	return 1;
-}
-
-
-//---------------------------------------------------------------------
-//		プラグイン設定関数
-//---------------------------------------------------------------------
-LRESULT CALLBACK func_config_proc(HWND hdlg, UINT umsg, WPARAM wparam, LPARAM lparam) {
-	switch(umsg) {
-		case WM_INITDIALOG:
-			loadSetting(&config, gIni);
-
-			//SetDlgItemText(hdlg,IDC_EDIT0, config.name);
-			SetDlgItemInt(hdlg, IDC_EDIT0, config.rate, FALSE);
-			SetDlgItemInt(hdlg, IDC_EDIT1, config.scale, FALSE);
-
-			if (config.straighten == 0) {
-				CheckDlgButton(hdlg, IDC_CHECK1, BST_UNCHECKED);
-			} else {
-				CheckDlgButton(hdlg, IDC_CHECK1, BST_CHECKED);
-			}
-			return TRUE;
-		case WM_COMMAND:
-			switch(LOWORD(wparam)) {
-				case IDCANCEL:
-					EndDialog(hdlg, LOWORD(wparam));
-					break;
-				case IDOK:
-					//GetDlgItemText(hdlg,IDC_EDIT0, config.name, 260);
-					config.rate = GetDlgItemInt(hdlg, IDC_EDIT0, NULL, FALSE);
-					config.scale = GetDlgItemInt(hdlg, IDC_EDIT1, NULL, FALSE);
-
-					if (IsDlgButtonChecked(hdlg, IDC_CHECK1) == BST_CHECKED) {
-						config.straighten = 1;
-					} else {
-						config.straighten = 0;
-					}
-					EndDialog(hdlg, LOWORD(wparam));
-
-					saveSetting(&config, gIni);
-					break;
-			}
-			break;
-	}
-	return FALSE;
-}
-
-bool func_config(HWND hwnd, HINSTANCE dll_hinst) {
-	DialogBox(dll_hinst, TEXT("CONFIG"), hwnd, (DLGPROC)func_config_proc);
-	return true;
-}
-
-
 bool func_video_proc(FILTER_PROC_VIDEO* video) {
 	auto w = (int)width.value;
 	auto h = (int)height.value;
 	if (w <= 0 || h <= 0) {
 		return false;
 	}
+
+	//video->scene->rate
+	//video->scene->scale
+	//video->object->frame_total
+	// フレーム番号のオリジンは?? オブジェクトそのものの相対0-origin not 全体
+	auto curFrame = video->object->frame;
+	//video->object->
 
 	// 指定サイズ、色の四角形の画像データを作成
 	auto col = color.value;
@@ -202,7 +112,9 @@ bool func_video_proc(FILTER_PROC_VIDEO* video) {
 }
 
 bool func_audio_proc(FILTER_PROC_AUDIO* audio) {
+	// 使うなら 0L or 1R
 	auto sample_index = audio->object->sample_index;
+	// サンプル数
 	auto sample_num = audio->object->sample_num;
 	auto channel_num = audio->object->channel_num;
 
@@ -228,7 +140,7 @@ FILTER_PLUGIN_TABLE filter_plugin_table = {
 		| FILTER_PLUGIN_TABLE::FLAG_INPUT
 		| FILTER_PLUGIN_TABLE::FLAG_AUDIO,
 	TEXT("descriptionメディアオブジェクト"),
-	TEXT("混合"),
+	nullptr,
 	TEXT("descriptionメディアオブジェクト v0.3.1 by ウサギ"),
 	items,
 	func_video_proc, 
@@ -241,9 +153,6 @@ FILTER_PLUGIN_TABLE filter_plugin_table = {
 //---------------------------------------------------------------------
 EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version) { // versionは本体のバージョン番号
 	//resolvePath(hinstDLL);
-	loadSetting(&config, gIni);
-	saveSetting(&config, gIni);
-
 	return true;
 }
 
@@ -260,18 +169,3 @@ EXTERN_C __declspec(dllexport) void UninitializePlugin() {
 EXTERN_C FILTER_PLUGIN_TABLE __declspec(dllexport) * __stdcall GetFilterPluginTable(void) {
 	return &filter_plugin_table;
 }
-
-
-EXTERN_C BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
-	switch (fdwReason) {
-	case DLL_PROCESS_ATTACH:
-		resolvePath(hinstDLL);
-		loadSetting(&config, gIni);
-		saveSetting(&config, gIni);
-		break;
-	default:
-		break;
-	}
-	return TRUE;
-}
-

@@ -249,10 +249,16 @@ bool func_info_get(INPUT_HANDLE ih, INPUT_INFO* iip) {
 	}
 	auto p = (MY_HANDLE*)ih;
 	{
-		iip->flag = iip->FLAG_VIDEO;
+		if (p->seqNum >= 2) { // 連番と判断
+			iip->flag = iip->FLAG_VIDEO;
+			iip->n = p->seqNum;
+		} else { // 1枚のみ
+			iip->flag = iip->FLAG_VIDEO | iip->FLAG_TIME_TO_FRAME;
+			iip->n = 120;
+		}
+
 		iip->rate = config.rate;
 		iip->scale = config.scale;
-		iip->n = (p->seqNum >= 2) ? p->seqNum : 120;
 		iip->format_size = p->videoformatsize;
 		iip->format = (BITMAPINFOHEADER*)p->videoformat;
 	}
@@ -323,6 +329,11 @@ int func_read_video(INPUT_HANDLE ih, int frame, void* buf) {
 }
 
 
+int func_time_to_frame(INPUT_HANDLE ih, double time) {
+	// 連番でない場合専用
+	return 0;
+}
+
 //---------------------------------------------------------------------
 //		出力プラグイン構造体定義
 //---------------------------------------------------------------------
@@ -330,7 +341,7 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 		INPUT_PLUGIN_TABLE::FLAG_VIDEO,
 	TEXT("連番EXR入力"),
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),
-	TEXT("連番EXR入力 v0.4.1 by ウサギ"),
+	TEXT("連番EXR入力 v0.4.0 by ウサギ"),
 	func_open,
 	func_close,
 	func_info_get, //
@@ -338,7 +349,7 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 	NULL, // audio
 	func_config,		//	設定のダイアログを要求された時に呼ばれる関数へのポインタ (NULLなら呼ばれません)
 	NULL, // func_set_track
-	NULL, // func_time_to_frame,
+	func_time_to_frame,
 };
 
 EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version) {
