@@ -10,7 +10,7 @@
 //#include "../aviutl2_sdk/filter2.h"
 #include "../../plugins/lib/util.hpp"
 
-#define APP_NAME L"description_x"
+#define APP_NAME L"win_x"
 
 #define WAVE_FORMAT_IEEE_FLOAT (3)
 
@@ -60,7 +60,30 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 	return DefWindowProc(hwnd, message, wparam, lparam);
 }
 
+/// <summary>
+/// filemappingobject からハンドル値を得る
+/// </summary>
+/// <param name="result"></param>
+/// <returns></returns>
+int readFMO(HANDLE* result) {
+	auto fmo = CreateFileMapping(INVALID_HANDLE_VALUE,
+		NULL, PAGE_READWRITE, 0, 64, TEXT("_USAGI_AUX2_FMO"));
+	if (!fmo) {
+		return -1;
+	}
+	auto pv = MapViewOfFile(fmo, FILE_MAP_ALL_ACCESS, 0, 0, 64);
+	if (!pv) {
+		CloseHandle(fmo);
+		return -2;
+	}
+	auto p8 = (unsigned char*)pv;
+	HANDLE* ph = (HANDLE*)(p8 + 8);
+	*result = ph[0];
 
+	UnmapViewOfFile(pv);
+	CloseHandle(fmo);
+	return 1;
+}
 
 
 
@@ -80,7 +103,7 @@ EXTERN_C __declspec(dllexport) void UninitializePlugin() {
 
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE *host) {
 	// プラグインの情報を設定
-	host->set_plugin_information(L"Sample Window Client v0.4.1 By ウサギ");
+	host->set_plugin_information(L"Sample third party Window Client v0.4.1 By ウサギ");
 
 	// 自身のウィンドウを作成
 	WNDCLASSEXW wcex = {};

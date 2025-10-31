@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\aviutl2_sdk\plugin2.h" />
-    <ClInclude Include="..\lib\util.hpp" />
+    <ClInclude Include="..\..\plugins\aviutl2_sdk\plugin2.h" />
+    <ClInclude Include="..\..\plugins\lib\util.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="win_x.cpp" />
@@ -157,6 +157,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
