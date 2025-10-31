@@ -28,3 +28,6 @@
 *.db-shm
 *.db-wal
 *.opendb
+
+*.FileListAbsolute.txt
+RCa1*
