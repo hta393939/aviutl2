@@ -1167,48 +1167,60 @@ end
 --track3:角度,-360,360,0
 --track@vg:粒子速度,0,10,1.0,0.01
 --track@vz:拡大速度,0,10,1.0,0.01
+--track@fluc:ゆらぎ,0,500,100,1
+--track@dist:ゆがみ,0,500,100,1
 --track@blur:ぼかし,0,100,10,1
 
 -- 粒子化前の部分のみ描画するPixelShader
 --[[pixelshader@psmain:
-Texture2D texture0 : register(t0);
+Texture2D tempbuffer : register(t0);
+Texture2D random : register(t1);
+SamplerState sampler0 : register(s0);
 cbuffer constant0 : register(b0) {
 	float2 center;
 	float time;
+	float dist;
 	float blur;
 };
 float4 psmain(float4 input : SV_Position) : SV_Target {
-	float now = length(float2(input.xy) - center) - time + blur;
+	float rand = random.Sample(sampler0, input.xy / 16384.0).r;
+	float now = length(float2(input.xy) - center) - time + (rand * dist) + blur;
 	if (now < 0) {
 		discard;
 	}
-	return texture0[int2(input.xy)] * smoothstep(0, blur, now);
+	return tempbuffer[int2(input.xy)] * smoothstep(0, blur, now);
 }
 ]]
 
 -- 粒子化後の部分を加算合成するComputeShader
 --[[computeshader@csmain:
 RWTexture2D<half4> buffer : register(u0);
-Texture2D texture0 : register(t0);
+Texture2D tempbuffer : register(t0);
+Texture2D random : register(t1);
+SamplerState sampler0 : register(s0);
 cbuffer constant0 : register(b0) {
 	float2 center;
 	float2 speed;
 	float zspeed;
 	float time;
+	float fluc;
+	float dist;
 };
 [numthreads(1, 1, 1)]
 void csmain(uint2 pos : SV_DispatchThreadID) {
-	float now = length(float2(pos) - center) - time;
+	float rand = random.SampleLevel(sampler0, float2(pos) / 16384.0, 0).r;
+	float now = length(float2(pos) - center) - time + (rand * dist) ;
 	if (now >= 0) {
 		return;
 	}
-	float4 col = texture0[pos];
+	float4 col = tempbuffer[pos];
 	if (col.a <= 0) {
 		return;
 	}
+	float2 vec = pos + (rand * fluc);
 	float2 spd;
-	spd.x = speed.x + sin(radians(pos.x * 2.5)) + sin(radians(pos.x * 9.0));
-	spd.y = speed.y + cos(radians(pos.y * 2.8125)) + cos(radians(pos.y * 11.25));
+	spd.x = speed.x + sin(radians(vec.x * 2.5)) + sin(radians(vec.x * 9.0));
+	spd.y = speed.y + cos(radians(vec.y * 2.8125)) + cos(radians(vec.y * 11.25));
 	int2 xy = round(float2(pos) + spd * (now * now * zspeed));
 	// 同時アクセスする可能性があるのであまり良くない・・
 	col += buffer[xy];
@@ -1237,10 +1249,10 @@ obj.copybuffer("tempbuffer","object")
 cx = cx + obj.w/2;
 cy = cy + obj.h/2;
 -- 粒子化前の部分をフレームバッファに描画する
-obj.pixelshader("psmain","framebuffer","tempbuffer",{cx,cy,time,blur},"draw");
+obj.pixelshader("psmain","framebuffer",{"tempbuffer","random"},{cx,cy,time,dist,blur},"draw","loop");
 -- 粒子化後の部分をオブジェクトとする
 obj.clearbuffer("object")
-obj.computeshader("csmain","object","tempbuffer",{cx,cy,vx,vy,vz,time},obj.w,obj.h);
+obj.computeshader("csmain","object",{"tempbuffer","random"},{cx,cy,vx,vy,vz,time,fluc,dist},obj.w,obj.h,1,"loop");
 if(blur > 0) then
 	obj.effect("ぼかし","範囲",blur,"サイズ固定",1)
 end
