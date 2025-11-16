@@ -185,8 +185,8 @@ obj.pixelshader("psmain","framebuffer",{"cache:before","tempbuffer"},nil,"draw")
 --track@rot:回転速度,-360,360,0
 --track@num:数,1,1000,100
 --track@edge_r:エッジ角度,-360,360,-45
---track@edge_w:エッジ幅,0,100,50
---track@edge_h:エッジ高さ,0,3,1
+--track@edge_w:エッジ幅,0,100,0
+--track@edge_h:エッジ高さ,0,0.3,1
 --figure@fig:図形名,円
 --color@color:色,nil
 local dx={-0.30,0.30,0.33,-0.33}
@@ -252,8 +252,8 @@ end
 --track@num:数,1,1000,100
 --track@speed:速度,1,1000,100
 --track@edge_r:エッジ角度,-360,360,-45
---track@edge_w:エッジ幅,0,100,50
---track@edge_h:エッジ高さ,0,3,1
+--track@edge_w:エッジ幅,0,100,0
+--track@edge_h:エッジ高さ,0,0.3,1
 --figure@fig:図形名,円
 --color@color:色,nil
 time = obj.getvalue("scenechange")
