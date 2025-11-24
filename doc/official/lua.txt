@@ -188,7 +188,7 @@
         obj.framerate : フレームレート (ReadOnly)
         obj.frame : オブジェクト基準での現在のフレーム番号 (ReadOnly)
         obj.time : オブジェクト基準での現在の時間(秒) (ReadOnly)
-      obj.totalframe : オブジェクトの総フレーム数 (ReadOnly)
+        obj.totalframe : オブジェクトの総フレーム数 (ReadOnly)
         obj.totaltime : オブジェクトの総時間(秒) (ReadOnly)
         obj.layer : オブジェクトが配置されているレイヤー (ReadOnly) ※描画対象のオブジェクトのレイヤー位置
         obj.index : 複数オブジェクト時の番号 (ReadOnly) ※個別オブジェクト用
@@ -464,10 +464,14 @@
 
                 ◇サンプラーモード
                         obj.draw(),obj.drawpoly()描画時のサンプラーを変更します
-                        obj.setoption("sampler",value)
-                        value   : "clip"  = 領域外は透明色
-                                  "clamp" = 領域外は一番外側の色
-                                  "loop"  = 領域外はループ
+                        ※obj.drawpoly()でuv座標を引数で指定した場合はuv座標が領域範囲でクリップされます ※互換対応
+                        obj.setoption("sampler"[,value])
+                        value   : "clip"   = 領域外は透明色 ※obj.draw()のデフォルト設定
+                                  "clamp"  = 領域外は一番外側の色 ※obj.drawpoly()のデフォルト設定
+                                  "loop"   = 領域外はループ
+                                  "mirror" = 領域外は領域を反転しながらループ
+                                  "dot"    = 拡大縮小補間をしない(領域外は透明色)
+                                  ※省略時はデフォルト設定になります
 
         ○obj.getoption(name,...)
                 現在のオブジェクトの各種オプションを取得します。
@@ -1097,6 +1101,9 @@
         [2025/11/16]
         obj.sx,obj.sy,obj.szの項目を追加
         obj.getvalue()に基準拡大率("sx","sy","sz")の指定を追加
+
+        [2025/11/22]
+        obj.setoption("sampler")のサンプラーの種類を追加
 
 
 - Lua/LuaJITのバイナリについて -

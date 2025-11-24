@@ -804,6 +804,7 @@ end
 --track@size:固定サイズ,0,4000,0
 --check@mask:円形マスク,0
 --check@rsync:回転同期,0
+--check@transparent:領域外を透過,false
 --check0:表示位置確認,0
 x = obj.track0
 y = obj.track1
@@ -911,7 +912,11 @@ for ri=0,num-1 do
 		end
 	end
 end
+if( transparent ) then
+	obj.setoption("sampler","clip")
+end
 obj.drawpoly(vertex)
+obj.setoption("sampler")
 obj.load("tempbuffer")
 if( mask ~= 0 ) then
 	obj.effect("マスク","サイズ",h,"type",1)

@@ -14,7 +14,7 @@
 //	プラグインDLL終了関数 (任意)
 //		void UninitializePlugin()
 // 
-//	ログ出力機能初期化関数 (任意)
+//	ログ出力機能初期化関数 (任意) ※logger2.h
 //		void InitializeLogger(LOG_HANDLE* logger)
 
 //----------------------------------------------------------------------------------
@@ -33,12 +33,6 @@ struct OBJECT_LAYER_FRAME {
 	int layer;	// レイヤー番号
 	int start;	// 開始フレーム番号
 	int end;	// 終了フレーム番号
-};
-
-// 冗長なので後で廃止します
-struct DEPRECATED_OBJECT_FRAME_INFO {
-	int start;
-	int end;
 };
 
 //----------------------------------------------------------------------------------
@@ -78,8 +72,11 @@ struct EDIT_SECTION {
 	// 戻り値	: 検索したオブジェクトのハンドル (見つからない場合はnullptrを返却)
 	OBJECT_HANDLE (*find_object)(int layer, int frame);
 
-	// 冗長なので後で廃止します
-	DEPRECATED_OBJECT_FRAME_INFO (*deprecated_get_object_frame_info)(OBJECT_HANDLE object);
+	// オブジェクトに対象エフェクトが何個存在するかを取得します
+	// object	: オブジェクトのハンドル
+	// effect	: 対象のエフェクト名 (エイリアスファイルのeffect.nameの値)
+	// 戻り値	: 対象エフェクトの数 ※存在しない場合は0
+	int (*count_object_effect)(OBJECT_HANDLE object, LPCWSTR effect);
 
 	// オブジェクトのレイヤー・フレーム情報を取得します
 	// object	: オブジェクトのハンドル
@@ -158,6 +155,9 @@ struct EDIT_HANDLE {
 	// 戻り値			: trueなら成功
 	//					  編集が出来ない場合(出力中等)に失敗します
 	bool (*call_edit_section)(void (*func_proc_edit)(EDIT_SECTION* edit));
+
+	// call_edit_section()に引数paramを渡せるようにした関数です
+	bool (*call_edit_section_param)(void* param, void (*func_proc_edit)(void* param, EDIT_SECTION* edit));
 
 };
 
@@ -248,13 +248,13 @@ struct HOST_APP_TABLE {
 	void (*register_project_save_handler)(void (*func_project_save)(PROJECT_FILE* project));
 
 	// レイヤーメニューを登録する (レイヤー編集でオブジェクト未選択時の右クリックメニューに追加されます)
-	// name				: レイヤーメニューの名称
-	// func_proc_export	: レイヤーメニュー選択時のコールバック関数
+	// name					: レイヤーメニューの名称
+	// func_proc_layer_menu	: レイヤーメニュー選択時のコールバック関数
 	void (*register_layer_menu)(LPCWSTR name, void (*func_proc_layer_menu)(EDIT_SECTION* edit));
 
 	// オブジェクトメニューを登録する (レイヤー編集でオブジェクト選択時の右クリックメニューに追加されます)
-	// name				: オブジェクトメニューの名称
-	// func_proc_export	: オブジェクトメニュー選択時のコールバック関数
+	// name						: オブジェクトメニューの名称
+	// func_proc_object_menu	: オブジェクトメニュー選択時のコールバック関数
 	void (*register_object_menu)(LPCWSTR name, void (*func_proc_object_menu)(EDIT_SECTION* edit));
 
 };
