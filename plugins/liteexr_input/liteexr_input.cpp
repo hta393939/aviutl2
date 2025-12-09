@@ -341,7 +341,7 @@ INPUT_PLUGIN_TABLE input_plugin_table = {
 		INPUT_PLUGIN_TABLE::FLAG_VIDEO,
 	TEXT("連番EXR入力"),
 	TEXT("EXR File (*.exr)\0*.exr\0AllFile (*.*)\0*.*\0"),
-	TEXT("連番EXR入力 v0.4.0 by ウサギ"),
+	TEXT("連番EXR入力 v0.5.0 by ウサギ"),
 	func_open,
 	func_close,
 	func_info_get, //

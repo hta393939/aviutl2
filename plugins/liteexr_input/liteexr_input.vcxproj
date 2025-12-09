@@ -26,6 +26,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\aviutl2_sdk\input2.h" />
+    <ClInclude Include="..\lib\rle.hpp" />
     <ClInclude Include="..\lib\util.hpp" />
     <ClInclude Include="liteexr.hpp" />
     <ClInclude Include="liteexr_input.h" />

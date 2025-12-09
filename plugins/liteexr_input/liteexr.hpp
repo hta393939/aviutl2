@@ -3,6 +3,8 @@
 #include <vector>
 #include <map>
 
+#include "../lib/rle.hpp"
+
 typedef unsigned __int64 u64;
 typedef unsigned short u16;
 typedef unsigned char u8;
@@ -247,7 +249,8 @@ public:
 		// bottom は内
 		this->dwHeight = this->dataWindow.bottom - this->dataWindow.top + 1;
 
-		if (this->compression != NO_COMPRESSION) {
+		if (this->compression != NO_COMPRESSION
+			&& this->compression != RLE_COMPRESSION) {
 			return -13;
 		}
 
