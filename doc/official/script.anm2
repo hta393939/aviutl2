@@ -746,6 +746,7 @@ obj.setoption("focus_mode","fixed_size")
 --track0:回転数,-50,50,0,1
 --track1:ブラー,0,200,100
 --check0:横回転,0
+--filter
 t = obj.time/obj.totaltime
 t = -math.cos(math.pi*t)
 b = 1-math.abs(t)
@@ -1175,6 +1176,7 @@ end
 --track@fluc:ゆらぎ,0,500,100,1
 --track@dist:ゆがみ,0,500,100,1
 --track@blur:ぼかし,0,100,10,1
+--filter
 
 -- 粒子化前の部分のみ描画するPixelShader
 --[[pixelshader@psmain:
@@ -1249,7 +1251,12 @@ time = time*v*vz*20
 if(vz > 0) then
 	vz = 1/(vz*64)
 end
-obj.effect("オフスクリーン描画")
+
+if(obj.getinfo("filter")) then
+	obj.clearbuffer("framebuffer")
+else
+	obj.effect("オフスクリーン描画")
+end
 obj.copybuffer("tempbuffer","object")
 cx = cx + obj.w/2;
 cy = cy + obj.h/2;
@@ -1260,4 +1267,8 @@ obj.clearbuffer("object")
 obj.computeshader("csmain","object",{"tempbuffer","random"},{cx,cy,vx,vy,vz,time,fluc,dist},obj.w,obj.h,1,"loop");
 if(blur > 0) then
 	obj.effect("ぼかし","範囲",blur,"サイズ固定",1)
+end
+if(obj.getinfo("filter")) then
+	obj.draw()
+	obj.copybuffer("object","framebuffer")
 end
