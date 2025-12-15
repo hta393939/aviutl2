@@ -129,7 +129,7 @@ int rleUncompress(int inLength, int maxLength, const signed char in[], char out[
 			if (0 > (maxLength -= count + 1))
 				return 0;
 
-			ZeroMemory(out, *(char*)in, count + 1);
+			CopyMemory(out, in, count + 1);
 			out += count + 1;
 
 			in++;
@@ -210,7 +210,7 @@ int compress(const char* inPtr,
 
 
 /// <summary>
-/// 回答する
+/// 解凍する
 /// </summary>
 /// <param name="inPtr"></param>
 /// <param name="inSize">バイト数</param>

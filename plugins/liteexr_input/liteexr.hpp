@@ -44,10 +44,21 @@ struct BOX2I {
 
 class LiteExr {
 public:
-	LiteExr() {
 
+	LiteExr() {
 	}
 	virtual ~LiteExr() {
+		this->releaseTmp();
+	}
+
+	void releaseTmp() {
+		if (this->tmpBuffer == nullptr) {
+			return;
+		}
+		this->tmpBufferWholeByte = 0;
+		this->tmpBufferDataByte = 0;
+		delete[] this->tmpBuffer;
+		this->tmpBuffer = nullptr;
 	}
 
 	/// <summary>
@@ -287,16 +298,28 @@ public:
 		if (!bresult || reqByte != dwRead) {
 			return -2;
 		}
+
+		auto height = this->dwHeight;
+		DWORD preinfo[2];
+		for (int i = 0; i < height; ++i) {
+			SetFilePointer(f, this->dataOffset[i], NULL, FILE_BEGIN);
+			bresult = ReadFile(f, preinfo, 8, &dwRead, NULL);
+			if (!bresult || dwRead != 8) {
+				return -3;
+			}
+			// TODO: 未実装
+		}
+
 		return this->dwHeight;
 	}
 
 	/// <summary>
-	/// 参照メモリのセットが必要。
+	/// setRefBuffer() による参照メモリのセットが必要。
 	/// </summary>
 	/// <param name="buf"></param>
 	/// <param name="byteNum"></param>
-	/// <param name="buf"></param>
-	/// <returns></returns>
+	/// <param name="buf">書き出し先の先頭ポインタ</param>
+	/// <returns>バイト数</returns>
 	int getData(HANDLE f, unsigned char* buf) {
 		const int width = this->dwWidth;
 		const int height = this->dwHeight;
@@ -306,28 +329,54 @@ public:
 		const int byteNum = width * height * chNum * 2;
 		// 読み取り
 		const int elementSize = this->pixelType[0] == PIXELTYPE_HALF ? 2 : 4;
-		const int reqByte = 8 + this->dwWidth * elementSize * chNum;
+		
+		// 1行分の解凍後バイト数
+		//const int lineByte = this->dwWidth * elementSize * chNum;
+
+		//const int reqByte = 8 + this->dwWidth * elementSize * chNum;
 
 		ZeroMemory(buf, byteNum);
-		if (!this->refBuffer || this->refBufferByte < reqByte) {
-			return 0;
-		}
+		//if (!this->refBuffer || this->refBufferByte < reqByte) {
+		//	return 0;
+		//}
 
 		DWORD dwRead = 0;
-		auto p32 = (DWORD*)this->refBuffer;
+		//auto p32 = (DWORD*)this->refBuffer;
+		this->readyTmp(byteNum);
+ 
 		for (int i = 0; i < num; ++i) {
 			int c = this->dataOffset[i];
 			SetFilePointer(f, c, NULL, FILE_BEGIN);
-			BOOL bresult = ReadFile(f, this->refBuffer, reqByte, &dwRead, NULL);
-			if (!bresult || (dwRead != reqByte)) {
-				return 0; // ファイル不足エラー
+			DWORD preinfo[2];
+			BOOL bresult = ReadFile(f, preinfo, 8, &dwRead, NULL);
+			if (!bresult || (dwRead != 8)) {
+				return 0;
 			}
-			int dy = *p32;
+			int dy = preinfo[0];
 			if (dy >= height) {
 				return 0; // 範囲オーバーエラー
 			}
-			u16* psrc16 = (u16*)(this->refBuffer + 8);
-			float* psrcf = (float*)(this->refBuffer + 8);
+
+			DWORD reqBodyByte = preinfo[1];
+			auto result = this->readyTmp(reqBodyByte);
+			if (result < reqBodyByte) {
+				return 0; // Out of memory
+			}
+
+			bresult = ReadFile(f, this->tmpBuffer, reqBodyByte, &dwRead, NULL);
+			if (!bresult || (dwRead != reqBodyByte)) {
+				return 0; // ファイル不足エラー
+			}
+
+
+
+			u16* psrc16 = (u16*)(this->tmpBuffer);
+			float* psrcf = (float*)(this->tmpBuffer);
+			if (this->compression == RLE_COMPRESSION) {
+				uncompress((const char *)this->tmpBuffer, reqBodyByte,
+					(char *)this->refBuffer, (char*)this->tmpBuffer);
+			}
+
 			if (chNum >= 3) {
 				for (int j = 0; j < chNum; ++j) {
 					int elmOffset = this->channelElementOffset[j];
@@ -388,59 +437,32 @@ public:
 
 		}
 
-		/*
-		//DWORD data[8];
-		//u16 u16s[16];
-		//float f32s[8];
-		//bool err = false;
-		for (int i = 0; i < num; ++i) {
-			int c = this->dataOffset[i];
-
-			SetFilePointer(f, c, NULL, FILE_BEGIN);
-			BOOL bresult = ReadFile(f, data, 8, &dwRead, NULL);
-			if (!bresult || dwRead != 8) {
-				err = true;
-				break;
-			}
-			// Y成分
-			int dy = data[0];
-			int dataByteNum = data[1];
-
-			for (int j = 0; j < 4; ++j) {
-				int elmOffset = this->channelElementOffset[j];
-				int elementSize = this->channelType[j] == CHTYPE_FLOAT ? 4 : 2;
-				for (int x = 0; x < width; ++x) {
-					if (elementSize == 2) {
-						bresult = ReadFile(f, u16s, 2, &dwRead, NULL);
-					}
-					else {
-						bresult = ReadFile(f, f32s, 4, &dwRead, NULL);
-					}
-					if (!bresult || (dwRead != elementSize)) {
-						err = true;
-						break;
-					}
-
-					int offset = ((x + width * dy) * 4 + elmOffset) * 2;
-					u16* p = (u16*)(pdst + offset);
-					*p = (elementSize == 2) ? u16s[0] : _ftob16(f32s[0]);
-				}
-				if (err) {
-					break;
-				}
-			}
-		}
-		
-
-		if (err) {
-			return 0;
-		} */
 		return byteNum;
 	}
 
+	/// <summary>
+	/// 参照バッファをセットする
+	/// </summary>
+	/// <param name="buf"></param>
+	/// <param name="byteNum"></param>
 	void setRefBuffer(unsigned char* buf, int byteNum) {
 		this->refBuffer = buf;
 		this->refBufferByte = byteNum;
+	}
+
+	/// <summary>
+	/// 自分で管理するtmpBufferを確保する
+	/// </summary>
+	/// <param name="byteNum">必須バイト数</param>
+	/// <returns></returns>
+	int readyTmp(unsigned int byteNum) {
+		if (this->tmpBufferWholeByte > byteNum) {
+			return this->tmpBufferWholeByte;
+		}
+		this->releaseTmp();
+		this->tmpBuffer = new unsigned char[byteNum];
+		this->tmpBufferWholeByte = byteNum;
+		return byteNum;
 	}
 
 public:
@@ -452,7 +474,7 @@ public:
 	unsigned int dwWidth = 0;
 	// 
 	unsigned int dwHeight = 0;
-	// 0: 
+	// 0: NONE, 1: RLE
 	int compression = 0;
 	// 0: 
 	int lineOrder = -1;
@@ -470,5 +492,13 @@ public:
 	// 自分では管理しないバッファへの参照ポインタ
 	unsigned char* refBuffer = nullptr;
 	int refBufferByte = 0;
+
+
+	// 自分で管理するバッファ
+	unsigned char* tmpBuffer = nullptr;
+	// 全バイト数
+	int tmpBufferWholeByte = 0;
+	// 有効バイト数
+	int tmpBufferDataByte = 0;
 };
 
