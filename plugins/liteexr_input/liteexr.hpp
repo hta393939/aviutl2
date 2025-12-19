@@ -33,6 +33,18 @@ enum {
 	RANDOM_Y = 2,
 };
 
+/// <summary>
+/// 1ライン情報
+/// </summary>
+struct LINEINFO {
+	// オフセット
+	__int64 offset;
+	// Y座標値
+	unsigned int y;
+	// バイト数
+	DWORD byteNum;
+};
+
 struct BOX2I {
 	int left;
 	int top;
@@ -49,15 +61,16 @@ public:
 	}
 	virtual ~LiteExr() {
 		this->releaseTmp();
+		this->releaseLine();
 	}
 
 	void releaseTmp() {
-		if (this->tmpBuffer == nullptr) {
-			return;
+		if (this->tmpBuffer) {
+			delete[] this->tmpBuffer;
 		}
 		this->tmpBufferWholeByte = 0;
 		this->tmpBufferDataByte = 0;
-		delete[] this->tmpBuffer;
+
 		this->tmpBuffer = nullptr;
 	}
 
@@ -265,17 +278,6 @@ public:
 			return -13;
 		}
 
-		/*
-		{
-			int offsetNum = this->dwHeight;
-			this->dataOffset.resize(offsetNum);
-			for (int j = 0; j < offsetNum; ++j) {
-				u64 val = *((u64*)(buf + c));
-				this->dataOffset[j] = val;
-				c += 8;
-			}
-		}*/
-
 		return channelCount;
 	}
 
@@ -300,6 +302,9 @@ public:
 		}
 
 		auto height = this->dwHeight;
+
+		this->lineInfo.resize(height);
+
 		DWORD preinfo[2];
 		for (int i = 0; i < height; ++i) {
 			SetFilePointer(f, this->dataOffset[i], NULL, FILE_BEGIN);
@@ -307,7 +312,10 @@ public:
 			if (!bresult || dwRead != 8) {
 				return -3;
 			}
-			// TODO: 未実装
+			auto& info = this->lineInfo[i];
+			info.offset = this->dataOffset[i];
+			info.y = preinfo[0];
+			info.byteNum = preinfo[1];
 		}
 
 		return this->dwHeight;
@@ -331,7 +339,8 @@ public:
 		const int elementSize = this->pixelType[0] == PIXELTYPE_HALF ? 2 : 4;
 		
 		// 1行分の解凍後バイト数
-		//const int lineByte = this->dwWidth * elementSize * chNum;
+		const int lineByte = this->dwWidth * elementSize * chNum;
+		this->readyLine(lineByte);
 
 		//const int reqByte = 8 + this->dwWidth * elementSize * chNum;
 
@@ -345,30 +354,27 @@ public:
 		this->readyTmp(byteNum);
  
 		for (int i = 0; i < num; ++i) {
-			int c = this->dataOffset[i];
-			SetFilePointer(f, c, NULL, FILE_BEGIN);
-			DWORD preinfo[2];
-			BOOL bresult = ReadFile(f, preinfo, 8, &dwRead, NULL);
-			if (!bresult || (dwRead != 8)) {
-				return 0;
+			if (i >= this->lineInfo.size()) {
+				return 0; // 範囲オーバーエラー
 			}
-			int dy = preinfo[0];
+			auto& info = this->lineInfo[i];
+
+			auto dy = info.y;
 			if (dy >= height) {
 				return 0; // 範囲オーバーエラー
 			}
-
-			DWORD reqBodyByte = preinfo[1];
+			DWORD reqBodyByte = info.byteNum;
 			auto result = this->readyTmp(reqBodyByte);
 			if (result < reqBodyByte) {
 				return 0; // Out of memory
 			}
 
-			bresult = ReadFile(f, this->tmpBuffer, reqBodyByte, &dwRead, NULL);
+			int c = info.offset + 8;
+			SetFilePointer(f, c, NULL, FILE_BEGIN);
+			auto bresult = ReadFile(f, this->tmpBuffer, reqBodyByte, &dwRead, NULL);
 			if (!bresult || (dwRead != reqBodyByte)) {
 				return 0; // ファイル不足エラー
 			}
-
-
 
 			u16* psrc16 = (u16*)(this->tmpBuffer);
 			float* psrcf = (float*)(this->tmpBuffer);
@@ -465,14 +471,33 @@ public:
 		return byteNum;
 	}
 
+	void releaseLine() {
+		if (this->lineBuffer) {
+			delete[] this->lineBuffer;
+		}
+		this->lineBuffer = nullptr;
+		this->lineBufferWholeByte = 0;
+		this->lineBufferDataByte = 0;
+	}
+
+	int readyLine(unsigned int byteNum) {
+		if (this->lineBufferWholeByte > byteNum) {
+			return this->lineBufferWholeByte;
+		}
+		this->releaseLine();
+		this->lineBuffer = new unsigned char[byteNum];
+		this->lineBufferWholeByte = byteNum;
+		return byteNum;
+	}
+
 public:
 	BOX2I dataWindow = { 0,0,0,0 };
 	// 使用しない
 	BOX2I displayWindow = { 0,0,0,0 };
 	std::vector<u64> dataOffset;
-
+	// 幅
 	unsigned int dwWidth = 0;
-	// 
+	// 高さ
 	unsigned int dwHeight = 0;
 	// 0: NONE, 1: RLE
 	int compression = 0;
@@ -489,16 +514,25 @@ public:
 	// ファイル内位置
 	int offsetTableTop = -1;
 
+	std::vector<LINEINFO> lineInfo;
+
 	// 自分では管理しないバッファへの参照ポインタ
 	unsigned char* refBuffer = nullptr;
 	int refBufferByte = 0;
 
 
-	// 自分で管理するバッファ
+	// 自分で管理するバッファ。もしかしたらラインデータより膨れていくバッファ
 	unsigned char* tmpBuffer = nullptr;
 	// 全バイト数
 	int tmpBufferWholeByte = 0;
 	// 有効バイト数
 	int tmpBufferDataByte = 0;
+
+	// 自分で管理するバッファ。固定で決まるチャンネル考慮1行分バッファ
+	unsigned char* lineBuffer = nullptr;
+	// 全バイト数
+	int lineBufferWholeByte = 0;
+	// 有効バイト数(おそらく全バイト数と一致する使い方のみ)
+	int lineBufferDataByte = 0;
 };
 
