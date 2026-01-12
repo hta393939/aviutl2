@@ -65,7 +65,7 @@ obj.setoption("focus_mode","fixed_size")
 --select@deco:装飾タイプ,標準文字=0,影付き文字=1,影付き文字(薄)=2,縁取り文字=3,縁取り文字(細)=4,縁取り文字(太)=5,縁取り文字(角)=6
 --color@col1:文字色,0xffffff
 --color@col2:影・縁色,0x000000
-sec = obj.track0+obj.time*obj.track1
+sec = obj.track0+obj.time*obj.track1+(1e-9) ;-- 誤差調整
 mode = math.floor(format)
 if( mode == 1 ) then
 	str = string.format("%02d",sec)

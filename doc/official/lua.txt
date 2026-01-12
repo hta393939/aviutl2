@@ -740,6 +740,13 @@
                           "cache:xxxx"=キャッシュバッファ(xxxxは任意の名前)
                 color   : 色(0x000000～0xffffff) ※未指定の場合は透明色
 
+        ○obj.clearbuffer(target,w,h[,color])
+                画像バッファのサイズを変更してクリアします。
+                target  : クリアするバッファ名(フレームバッファはサイズを変更出来ません)
+                w       : 横のピクセル数
+                h       : 縦のピクセル数
+                color   : 色(0x000000～0xffffff) ※未指定の場合は透明色
+
         ○obj.pixelshader(name,target,{resource,...}[,{constant,...},blend,sampler])
                 ピクセルシェーダーを実行します。
                 name      : シェーダーの登録名 ※登録したシェーダー名を文字列で指定します。
@@ -1165,6 +1172,10 @@
         フィルタオブジェクトからobj.effect()を利用した時にフィルタ効果として処理されないのを修正
         オブジェクトの出力が基本出力の時に仮想バッファへのobj.draw()が処理されないのを修正
         トラックバー移動スクリプトの'--param'を複数指定出来るようにした
+
+        [2026/1/11]
+        obj.getoption("gui")の返却が正しくないのを修正
+        obj.clearbuffer()にサイズ変更の引数を追加
 
 
 - Lua/LuaJITのバイナリについて -
