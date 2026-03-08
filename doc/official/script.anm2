@@ -577,37 +577,67 @@ end
 @簡易変形
 --label:変形
 --track0:時間経過,0,100,0
---dialog:座標,pos={-100,-100,100,-100,100,100,-100,100};分割数,div=30;
-if( obj.getoption("track_mode",0) == 0 ) then
-	obj.setanchor("pos",4,"loop")
+--group:詳細設定,false
+--track@div:分割数,1,100,30,1
+--value@pos:座標,{}
+
+-- RGBA加算合成でα値が1.0を超えた場合に調整するPixelShader
+--[[pixelshader@psmain:
+Texture2D tempbuffer : register(t0);
+float4 psmain(float4 input : SV_Position) : SV_Target {
+	float4 col = tempbuffer[int2(input.xy)];
+	return col.a <= 1.0 ? col : col / col.a;
+}
+]]
+
+-- アンカーを設定する
+local ow = obj.w/2
+local oh = obj.h/2
+local init = {}
+if (obj.getoption("track_mode",0) == 0) then
+	if (#pos == 16) then
+		init = {pos[1],pos[2],pos[3],pos[4],pos[5],pos[6],pos[7],pos[8]}
+	else
+		init = {-ow,-oh,ow,-oh,ow,oh,-ow,oh}
+	end
+	if (#pos ~= #init) then 
+		pos = init
+	end
+	obj.setanchor("pos",4,init,"loop")
 else
-	obj.setanchor("pos",8,"loop","inout")
+	if (#pos == 8) then
+		init = {pos[1],pos[2],pos[3],pos[4],pos[5],pos[6],pos[7],pos[8],-ow,-oh,ow,-oh,ow,oh,-ow,oh}
+	else
+		init = {-ow,-oh,ow,-oh,ow,oh,-ow,oh,-ow,-oh,ow,-oh,ow,oh,-ow,oh}
+	end
+	if (#pos ~= #init) then
+		pos = init
+	end
+	obj.setanchor("pos",8,init,"loop","inout")
 	s = obj.track0/100
 	for i=1,8 do
 		pos[i] = pos[i] + (pos[i+8]-pos[i])*s
 	end
 end
-if( div < 1  ) then div = 1  end
-if( div > 50 ) then div = 50 end
 
 -- 仮想バッファの解像度を決める
-sx = math.min(pos[1],pos[3],pos[5],pos[7])
-ex = math.max(pos[1],pos[3],pos[5],pos[7])
-sy = math.min(pos[2],pos[4],pos[6],pos[8])
-ey = math.max(pos[2],pos[4],pos[6],pos[8])
-w = math.ceil(ex-sx)
-h = math.ceil(ey-sy)
-sx = (sx+ex)/2
-sy = (sy+ey)/2
+local sx = math.min(pos[1],pos[3],pos[5],pos[7])
+local ex = math.max(pos[1],pos[3],pos[5],pos[7])
+local sy = math.min(pos[2],pos[4],pos[6],pos[8])
+local ey = math.max(pos[2],pos[4],pos[6],pos[8])
+local dstw = math.ceil(ex-sx)
+local dsth = math.ceil(ey-sy)
+local sx = (sx+ex)/2
+local sy = (sy+ey)/2
 for i=0,3 do
 	s = i*2+1
 	pos[s  ] = pos[s  ] - sx
 	pos[s+1] = pos[s+1] - sy
 end
-obj.setoption("drawtarget","tempbuffer",w,h)
+obj.setoption("drawtarget","tempbuffer",dstw,dsth)
 
 -- 変形させて描画する
-w,h = obj.getpixel()
+local w,h = obj.getpixel()
 px0 = pos[1]
 py0 = pos[2]
 px1 = pos[3]
@@ -652,27 +682,52 @@ for y=1,div do
 		table.insert(vertex,{x0,y0,0,x1,y1,0,x2,y2,0,x3,y3,0 ,u0,v0,u1,v0,u1,v1,u0,v1})
 	end
 end
+obj.setoption("blend","rgba_add")
 obj.drawpoly(vertex);
-obj.load("tempbuffer")
+
+-- α値を調整してオブジェクトにコピーする
+obj.clearbuffer("object",dstw,dsth)
+obj.pixelshader("psmain","object","tempbuffer")
 obj.cx = obj.cx - sx
 obj.cy = obj.cy - sy
-obj.setoption("focus_mode","fixed_size")
+obj.setoption("focus_mode","no_resize")
 
 @簡易変形(カメラ制御)
 --label:変形
 --track0:時間経過,0,100,0
---dialog:座標,pos={-100,-100,0,100,-100,0,100,100,0,-100,100,0};分割数,div=30;
-if( obj.getoption("track_mode",0) == 0 ) then
-	obj.setanchor("pos",4,"loop","xyz")
+--group:詳細設定,false
+--track@div:分割数,1,100,30,1
+--value@pos:座標,{}
+
+-- アンカーを設定する
+local ow = obj.w/2
+local oh = obj.h/2
+local init = {}
+if (obj.getoption("track_mode",0) == 0) then
+	if (#pos == 24) then
+		init = {pos[1],pos[2],pos[3],pos[4],pos[5],pos[6],pos[7],pos[8],pos[9],pos[10],pos[11],pos[12]}
+	else
+		init = {-ow,-oh,0,ow,-oh,0,ow,oh,0,-ow,oh,0}
+	end
+	if (#pos ~= #init) then 
+		pos = init
+	end
+	obj.setanchor("pos",4,init,"loop","xyz")
 else
-	obj.setanchor("pos",8,"loop","xyz","inout")
+	if (#pos == 12) then
+		init = {pos[1],pos[2],pos[3],pos[4],pos[5],pos[6],pos[7],pos[8],pos[9],pos[10],pos[11],pos[12],-ow,-oh,0,ow,-oh,0,ow,oh,0,-ow,oh,0}
+	else
+		init = {-ow,-oh,0,ow,-oh,0,ow,oh,0,-ow,oh,0,-ow,-oh,0,ow,-oh,0,ow,oh,0,-ow,oh,0}
+	end
+	if (#pos ~= #init) then
+		pos = init
+	end
+	obj.setanchor("pos",8,init,"loop","xyz","inout")
 	s = obj.track0/100
 	for i=1,12 do
 		pos[i] = pos[i] + (pos[i+12]-pos[i])*s
 	end
 end
-if( div < 1  ) then div = 1  end
-if( div > 50 ) then div = 50 end
 
 -- 変形させて描画する
 w = obj.w
@@ -1272,3 +1327,131 @@ if(obj.getinfo("filter")) then
 	obj.draw()
 	obj.copybuffer("object","framebuffer")
 end
+
+@メッシュ変形
+--label:変形
+--track@ratio:変形率,0,100,100
+--track@posw:横格子点,2,20,5,1
+--track@posh:縦格子点,2,20,5,1
+--group:詳細設定,false
+--track@div:分割数,1,100,50,1
+--value@pos:座標,{}
+--filter
+
+-- RGBA加算合成でα値が1.0を超えた場合に調整するPixelShader
+--[[pixelshader@psmain:
+Texture2D tempbuffer : register(t0);
+float4 psmain(float4 input : SV_Position) : SV_Target {
+	float4 col = tempbuffer[int2(input.xy)];
+	return col.a <= 1.0 ? col : col / col.a;
+}
+]]
+
+-- 標準座標のテーブルを作成
+local init={}
+for y=0,posh-1 do
+	for x=0,posw-1 do
+		table.insert(init,obj.w*(x/(posw-1)-0.5))
+		table.insert(init,obj.h*(y/(posh-1)-0.5))
+	end
+end
+-- 座標の数が異なる場合は標準座標にする
+if (#pos ~= #init) then
+	pos = init
+end
+
+-- アンカーを設定する
+local num = posw*posh
+obj.setanchor("pos",num,init,"small","mesh",posw,posh,"rgba",0xffffff40)
+
+-- 変形率を反映した座標にする
+if (ratio < 100) then
+	for i=1,#pos do
+		pos[i] = init[i] + (pos[i]-init[i])*ratio/100
+	end
+end
+
+-- 仮想バッファの解像度を決める
+local w,h=obj.getpixel()
+local dstw,dsth=w,h
+local sx=0
+local ex=0
+local sy=0
+local ey=0
+if (obj.getinfo("filter")) then
+	obj.setoption("drawtarget","tempbuffer",dstw,dsth)
+else
+	for i=0,num-1 do
+		sx = math.min(sx,pos[i*2+1])
+		ex = math.max(ex,pos[i*2+1])
+		sy = math.min(sy,pos[i*2+2])
+		ey = math.max(ey,pos[i*2+2])
+	end
+	dstw = math.ceil(ex-sx)
+	dsth = math.ceil(ey-sy)
+	obj.setoption("drawtarget","tempbuffer",dstw,dsth)
+	sx = (sx+ex)/2
+	sy = (sy+ey)/2
+end
+
+-- 変形させて描画する
+local vertex={}
+local divw = math.ceil(div/posw)
+local divh = math.ceil(div/posh)
+for posy=0,posh-2 do
+	for posx=0,posw-2 do
+		local base = posx+posy*posw
+		px0 = pos[base*2+1]-sx
+		py0 = pos[base*2+2]-sy
+		px1 = pos[(base+1)*2+1]-sx
+		py1 = pos[(base+1)*2+2]-sy
+		px2 = pos[(base+1+posw)*2+1]-sx
+		py2 = pos[(base+1+posw)*2+2]-sy
+		px3 = pos[(base+posw)*2+1]-sx
+		py3 = pos[(base+posw)*2+2]-sy
+		sx1 = px0
+		sy1 = py0
+		ex1 = px1
+		ey1 = py1
+		v1 = h*posy/(posh-1)
+		for y=1,divh do
+			sx0 = sx1
+			sy0 = sy1
+			ex0 = ex1
+			ey0 = ey1
+			sx1 = px0+(px3-px0)*y/divh
+			sy1 = py0+(py3-py0)*y/divh
+			ex1 = px1+(px2-px1)*y/divh
+			ey1 = py1+(py2-py1)*y/divh
+			v0 = v1
+			v1 = h*(posy+y/divh)/(posh-1)
+			x1 = sx0
+			y1 = sy0
+			x2 = sx1
+			y2 = sy1
+			u1 = w*posx/(posw-1)
+			for x=1,divw do
+				x0 = x1
+				y0 = y1
+				x1 = sx0+(ex0-sx0)*x/divw
+				y1 = sy0+(ey0-sy0)*x/divw
+				x3 = x2
+				y3 = y2
+				x2 = sx1+(ex1-sx1)*x/divw
+				y2 = sy1+(ey1-sy1)*x/divw
+				u0 = u1
+				u1 = w*(posx+x/divw)/(posw-1)
+				table.insert(vertex,{x0,y0,0,x1,y1,0,x2,y2,0,x3,y3,0 ,u0,v0,u1,v0,u1,v1,u0,v1})
+			end
+		end
+	end
+end
+obj.setoption("blend","rgba_add")
+obj.drawpoly(vertex);
+
+-- α値を調整してオブジェクトにコピーする
+obj.clearbuffer("object",dstw,dsth)
+obj.pixelshader("psmain","object","tempbuffer")
+obj.cx = obj.cx-sx
+obj.cy = obj.cy-sy
+obj.setoption("focus_mode","fixed_size")
