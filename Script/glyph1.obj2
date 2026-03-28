@@ -1,10 +1,12 @@
---information:glyph 0.1.0 2026-03-28 1
+--information:glyph 0.1.0 2026-03-28 2
 --check@bold:太字,true
 --track@size:サイズ,256,2000,512, 1
---track@px:フォントサイズ,1,1000,20
+--track@px:フォントサイズ,1,1000,24
 --font@font:フォント,Segoe UI
 --color@col0:色0,0x3333ff
 --color@col1:色1,0xffffff
+--track@offsety:オフセットY,-32,32,-3
+--check@checker:デバグチェッカー,false
 
 local function _fromCodePoint(c)
   if c <= 127 then
@@ -46,17 +48,37 @@ for i = 0, 15 do
     local x = (j + 0.5) * one - w2
     local y = (i + 0.5) * one - h2
     local offset = count
+
+    if checker then
+      back_col = 0xcccccc
+      if AND(1, AND(i, 1) + AND(j, 1)) == 0 then
+        back_col = 0x000000
+      end
+      obj.load('figure', '四角形', back_col, one)
+      obj.draw(x, y)
+    end
+
+    local odd = AND(j, 1)
     if i < 6 then
-      odd = AND(j, 1)
+
       if i < 4 then
         offset = 16 + math.floor(count / 2) + odd * 32
       else
         offset = math.floor((count - 64) / 2) + odd * 80
       end
     end
+    if i == 12 then
+      offset = count + 1
+      if j == 14 then
+        offset = 12 * 16
+      elseif j == 15 then
+        offset = 12 * 16 + 15 
+      end
+    end
+
     obj.load('text', _fromCodePoint(0x0400 + offset))
     -- obj.load('text', _fromCodePoint(0x1f400 + count))
-    obj.draw(x, y)
+    obj.draw(x, y + offsety)
     count = count + 1
   end
 end
