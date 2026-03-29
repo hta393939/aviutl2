@@ -370,9 +370,10 @@ obj.setoption("focus_mode","fixed_size")
 @砕け散る
 --track0:開始時間,-100,100,0,0.01
 --track@step:再生速度,-10,10,1,0.01
---track1:中心X,-5000,5000,0
---track2:中心Y,-5000,5000,0
---track3:中心Z,-5000,5000,0
+--track@ax:中心X,-5000,5000,0
+--track@ay:中心Y,-5000,5000,0
+--track@az:中心Z,-5000,5000,0
+--trackgroup@cx,cy,cz:Group
 --track@size:破片サイズ,5,1000,50
 --track@speed:速度,-5000,5000,100
 --track@grav:重力,0,1000,100
@@ -380,6 +381,7 @@ obj.setoption("focus_mode","fixed_size")
 --track@impact:距離影響,0,5000,100
 --track@spin:ランダム回転,0,5000,100
 --track@diff:ランダム方向,0,5000,100
+obj.setanchor("ax,ay,az",0,"xyz","line")
 local px={}
 local py={}
 local pz={}
@@ -404,9 +406,6 @@ if( size < 5 ) then
 end 
 xl = obj.w
 yl = obj.h
-ax = obj.track1
-ay = obj.track2
-az = obj.track3
 sp = speed*0.01*math.sqrt(impact)
 w = math.floor(xl/size)
 h = math.floor(yl/size)
@@ -684,6 +683,7 @@ for y=1,div do
 end
 obj.setoption("blend","rgba_add")
 obj.drawpoly(vertex);
+obj.setoption("blend")
 
 -- α値を調整してオブジェクトにコピーする
 obj.clearbuffer("object",dstw,dsth)
@@ -1338,15 +1338,6 @@ end
 --value@pos:座標,{}
 --filter
 
--- RGBA加算合成でα値が1.0を超えた場合に調整するPixelShader
---[[pixelshader@psmain:
-Texture2D tempbuffer : register(t0);
-float4 psmain(float4 input : SV_Position) : SV_Target {
-	float4 col = tempbuffer[int2(input.xy)];
-	return col.a <= 1.0 ? col : col / col.a;
-}
-]]
-
 -- 標準座標のテーブルを作成
 local init={}
 for y=0,posh-1 do
@@ -1448,10 +1439,11 @@ for posy=0,posh-2 do
 end
 obj.setoption("blend","rgba_add")
 obj.drawpoly(vertex);
+obj.setoption("blend")
 
--- α値を調整してオブジェクトにコピーする
+-- α値を調整してオブジェクトにコピーする ※簡易変形のPixelShaderを利用
 obj.clearbuffer("object",dstw,dsth)
-obj.pixelshader("psmain","object","tempbuffer")
+obj.pixelshader("psmain@簡易変形","object","tempbuffer")
 obj.cx = obj.cx-sx
 obj.cy = obj.cy-sy
 obj.setoption("focus_mode","fixed_size")

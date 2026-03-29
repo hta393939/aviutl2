@@ -234,6 +234,7 @@ for i=1,#p_lst do
 	obj.effect("単色化","color",col,"輝度を保持する",0)
 	obj.draw(x,y,0,r,a,0,0,f_rot)
 end
+obj.setoption("blend")
 obj.setoption("focus_mode","fixed_size")
 
 @雲
@@ -951,6 +952,7 @@ if( obj.track3 > 0 ) then
 		end
 	end
 end
+obj.setoption("blend")
 obj.setoption("focus_mode","fixed_size")
 
 @水面
