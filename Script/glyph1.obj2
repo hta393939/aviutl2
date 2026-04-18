@@ -3,37 +3,47 @@
 --track@size:サイズ,256,2000,512, 1
 --track@px:フォントサイズ,1,1000,24
 --font@font:フォント,Segoe UI
---track@deco:装飾,0,5,5,1
+--select@deco:装飾タイプ=5,標準文字=0,影付き文字=1,影付き文字(薄)=2,縁取り文字=3,縁取り文字(細)=4,縁取り文字(太)=5,縁取り文字(角)=6
 --color@col0:色0,0x3333ff
 --color@col1:色1,0xffffff
 --track@offsety:オフセットY,-32,32,-3
---track@thr:閾値,0.0,1.0, 0.5, 0.01
+--track@factor0:境界ファクター,0,4, 0.5, 0.01
 --track@thrRange:レンジ閾値,0.0,1.0,0.75, 0.01
+--track@multi:倍率,1,4, 4, 1
 --check@checker:デバグチェッカー,false
 --[[pixelshader@psquantwrealpha:
 Texture2D target : register(t0);
 cbuffer constant0 : register(b0) {
-  float thr;
+  float factor0;
   float range;
   float rangeThr;
-  float val3;
+  float multi;
   float4 col0; // 内側
   float4 col1; // 外側だいたい白
 };
 float4 psquantwrealpha(float4 pos : SV_Position) : SV_Target {
   float4 incol = target[int2(pos.xy)];
   float a = incol.w;
-  if (a <= thr) {
-    //discard;
-    return float4(0, 0, 0, 0);
+  float targetA = 1.0;
+  if (factor0 < 1.0) {
+    if (a < factor0) {
+      //discard; ではダメ
+      return float4(0, 0, 0, 0);
+    }
+  } else {
+    targetA = round(a * factor0) / factor0;
   }
+
   incol /= a;
-  incol.w = 1;
+  incol.a = 1;
 
   float4 diff = incol - col0;
   float t = max(diff.r, max(diff.g, diff.b)) / range;
-  incol = lerp(col0, col1, step(rangeThr, t)); // HLSL, aが0側
-  incol.w = 1;
+  t = round(t * multi) / multi;
+  incol = lerp(col0, col1, t); // HLSL, aが0側
+
+  incol.rgb *= targetA;
+  incol.a = targetA;
   return incol;
 }
 ]]
@@ -132,7 +142,7 @@ local r1 = _GETR(col1)
 local g1 = _GETG(col1)
 local b1 = _GETB(col1)
 local range = math.max(r1 - r0, math.max(g1 - g0, b1 - b0))
-obj.pixelshader("psquantwrealpha", "tempbuffer", "tempbuffer", {thr, range, thrRange,3, r0, g0, b0, 1, r1, g1, b1, 1})
+obj.pixelshader("psquantwrealpha", "tempbuffer", "tempbuffer", {factor0, range, thrRange,multi, r0, g0, b0, 1, r1, g1, b1, 1})
 
 debug_print(string.format('glyph, %f', one))
 
