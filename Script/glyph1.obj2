@@ -3,10 +3,40 @@
 --track@size:サイズ,256,2000,512, 1
 --track@px:フォントサイズ,1,1000,24
 --font@font:フォント,Segoe UI
+--track@deco:装飾,0,5,5,1
 --color@col0:色0,0x3333ff
 --color@col1:色1,0xffffff
 --track@offsety:オフセットY,-32,32,-3
+--track@thr:閾値,0.0,1.0, 0.5, 0.01
+--track@thrRange:レンジ閾値,0.0,1.0,0.75, 0.01
 --check@checker:デバグチェッカー,false
+--[[pixelshader@psquantwrealpha:
+Texture2D target : register(t0);
+cbuffer constant0 : register(b0) {
+  float thr;
+  float range;
+  float rangeThr;
+  float val3;
+  float4 col0; // 内側
+  float4 col1; // 外側だいたい白
+};
+float4 psquantwrealpha(float4 pos : SV_Position) : SV_Target {
+  float4 incol = target[int2(pos.xy)];
+  float a = incol.w;
+  if (a <= thr) {
+    //discard;
+    return float4(0, 0, 0, 0);
+  }
+  incol /= a;
+  incol.w = 1;
+
+  float4 diff = incol - col0;
+  float t = max(diff.r, max(diff.g, diff.b)) / range;
+  incol = lerp(col0, col1, step(rangeThr, t)); // HLSL, aが0側
+  incol.w = 1;
+  return incol;
+}
+]]
 
 local function _fromCodePoint(c)
   if c <= 127 then
@@ -33,14 +63,24 @@ local function _fromCodePoint(c)
   return string.format('%c%c%c%c', c0, c1, c2, c3)
 end
 
+local function _GETR(c)
+  return AND(SHIFT(c, -16), 0xff) / 255
+end
+local function _GETG(c)
+  return AND(SHIFT(c, -8), 0xff) / 255
+end
+local function _GETB(c)
+  return AND(c, 0xff) / 255
+end
+
 local w2 = size * 0.5
 local h2 = size * 0.5
 local one = size / 16.0
 
 obj.setoption('drawtarget', 'tempbuffer', size, size)
 
--- obj.setfont(font, px, 5, 0x009900, 0xffffff)
-obj.setfont(font, px, 5, col0, col1, bold)
+-- obj.setfont(font, px, deco, 0x009900, 0xffffff)
+obj.setfont(font, px, deco, col0, col1, bold)
 
 local count = 0
 for i = 0, 15 do
@@ -82,6 +122,17 @@ for i = 0, 15 do
     count = count + 1
   end
 end
+
+
+local r0 = _GETR(col0)
+local g0 = _GETG(col0)
+local b0 = _GETB(col0)
+-- だいたい白
+local r1 = _GETR(col1)
+local g1 = _GETG(col1)
+local b1 = _GETB(col1)
+local range = math.max(r1 - r0, math.max(g1 - g0, b1 - b0))
+obj.pixelshader("psquantwrealpha", "tempbuffer", "tempbuffer", {thr, range, thrRange,3, r0, g0, b0, 1, r1, g1, b1, 1})
 
 debug_print(string.format('glyph, %f', one))
 
