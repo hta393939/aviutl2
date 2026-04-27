@@ -401,8 +401,10 @@
                         obj.load("text.layout",text[,speed,time,align]) ※"textlayout"の指定も利用できます
                         obj.load("text")で読み込むテキストの画像サイズを取得します。※引数は同じです
                         現在のオブジェクト情報を更新しないでサイズの返却のみをします。
+                        ※文字揃え種別を指定すると中心座標も返却されます。
                         戻り値  : 横、縦のピクセル数
-                        例：w,h = obj.load("textlayout","この文字を画像として読み込んだ時のサイズ")
+                        例：w,h = obj.load("text.layout","この文字を画像として読み込んだ時のサイズ")
+                        例：w,h,cx,cy = obj.load("text.layout","中心座標付き",0,0,0)
                 ◇図形
                         図形を読み込みます。
                         obj.load("figure",name[,color,size,line,round])
@@ -1368,6 +1370,10 @@
 
         [2026/4/18]
         obj.load("movie")の読み込み失敗時の返却を以前の値に修正 ※互換対応
+
+        [2026/4/26]
+        '--font'のデフォルト値のフォントが無い場合に例外になるのを修正
+        obj.load("text.layout")で文字揃え種別を指定した時に中心座標を返却するようにした
 
 
 - Lua/LuaJITのバイナリについて -
