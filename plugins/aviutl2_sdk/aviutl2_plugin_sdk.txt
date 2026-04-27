@@ -64,6 +64,8 @@
         name=サンプルパッケージ
         ; パッケージの情報 ※インストール、アンインストール等で表示されます
         information=サンプルパッケージ ver2.00 by Kenkun
+        ; アンインストール時にサブフォルダのファイル削除指定 ※競合しないPlugin,Script等の一つ下のフォルダのファイルを全て削除対象にする
+        uninstallSubFolderFile=1
 
     プラグイン・スクリプト・言語ファイルを含める場合は下記のような構成になります。
         SamplePackage.au2pkg.zip
@@ -249,3 +251,26 @@
     [2026/3/8]
     [aux2] set_object_item_value()で対象レイヤー数を変更した時にレイヤー編集の表示に反映されないのを修正
     [aux2] HOST_APP_TABLEにregister_file_drop_handler(),register_file_drop_param_handler()を追加
+
+    [2026/3/14]
+    [aux2] 引数に存在しないファイルを指定してアプリを起動した時にregister_project_load_handler()が呼ばれないのを修正
+    [aux2] set_object_item_value()でテキスト設定を変更した時にオブジェクト設定の表示が更新されないことがあるのを修正
+    [aux2] get_mouse_layer_frame()でファイルD&D時のドロップ位置を取得出来るようにした
+    各種ヘッダーファイルに#pragma onceを追加
+    
+    [2026/3/29]
+    [mod2] push_result_array_boolean(),push_result_table_boolean()を追加
+
+    [2026/4/12]
+    [auf2] FILTER_ITEM_SEPARATORを追加
+    [aux2] EDIT_HANDLEにget_edit_state()を追加
+    [aux2] EDIT_SECTIONの幾つかの関数の実装を改善
+    [au2pkg] package.iniにuninstallSubFolderFileの項目を追加
+
+    [2026/4/18]
+    [aux2] EDIT_HANDLEにcall_read_section,call_read_section_param()を追加
+
+    [2026/4/26]
+    [aux2] call_edit_section()のコールバック関数を呼び出し元と同じスレッドで呼ばれるように修正
+    [aux2] enum_effect_name()のエフェクト種別にEFFECT_TYPE_CONTROL,EFFECT_TYPE_OUTPUTを追加
+    [aux2] EDIT_HANDLEにenum_effect_item()を追加
