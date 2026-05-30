@@ -327,7 +327,7 @@ for i=1,n do
 	t = t-p
 	z = (1-t)*d*1024-512
 	x = obj.rand(-w,w,i,p)*v
-	y = obj.rand(-h,h,i,p)*v
+	y = obj.rand(-h,h,i+n,p)*v
 	a = 1
 	if( t < f_in ) then
 		a = a*t/f_in
