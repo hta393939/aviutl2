@@ -117,6 +117,9 @@
     AviUtl ExEdit2 Plugin SDK は MIT License の元で公開されています。
     ライセンスについては付属の license.txt をご覧ください。
 
+    サンプルコードで利用しているライブラリのライセンス等は
+    付属の credits.txt に纏めて記載しています。
+
 
 － 更新履歴 －
 
@@ -274,3 +277,79 @@
     [aux2] call_edit_section()のコールバック関数を呼び出し元と同じスレッドで呼ばれるように修正
     [aux2] enum_effect_name()のエフェクト種別にEFFECT_TYPE_CONTROL,EFFECT_TYPE_OUTPUTを追加
     [aux2] EDIT_HANDLEにenum_effect_item()を追加
+
+    [2026/4/28]
+    [aux2] call_edit_section()のコールバック関数をメインスレッドで呼ばれるように修正 ※色々問題があるので戻します
+    [aux2] enum_effect_name()のエフェクトフラグにEFFECT_FLAG_CAMERAを追加
+
+    [2026/5/4]
+    [aux2] HOST_APP_TABLEにregister_object_item_menu(),register_object_item_menu_param()を追加
+
+    [2026/5/10]
+    [auo2] OUTPUT_PLUGIN_TABLEにプロジェクトファイル側に出力設定を保持する為のフラグや関数を追加
+    [aux2] 編集レジュームが有効でレジュームデータが無い時にregister_project_load_handler()が呼ばれないのを修正
+    [aux2] EDIT_SECTIONにget_layer_enable(),set_layer_enable(),get_layer_lock(),set_layer_lock()を追加
+    [aux2] EDIT_SECTIONにget_object_section_num(),get_focus_object_section()を追加
+    [aux2] HOST_APP_TABLEにregister_script_module_name()を追加
+    [aux2] レイヤーメニュー、オブジェクトメニュー、設定項目メニューの登録でメニューを階層にする指定を追加
+
+    [2026/5/17]
+    [auf2] OBJECT_INFOにlayer,index,numを追加
+    [auf2] FILTER_PROC_VIDEO,FILTER_PROC_AUDIOに幾つかの関数を追加
+    [auf2][mod2][aux2] キャッシュ関連機能の関数定義(InitializeCache)を追加
+    [auf2][mod2] EDIT_SECTIONの参照用の関数を利用出来るようにした
+    [auf2] サンプルフィルタプラグインを更新
+
+    [2026/5/24]
+    [aux2] get_object_alias()が複数スレッドから同時に呼ばれた時に正しく取得出来ないのを修正
+    [aux2] EDIT_SECTIONの参照時の排他制御を調整
+    [aux2] 汎用プラグインのUninitializePluginのタイミングを調整
+    [auf2] FILTER_ITEM_CHECK_SECTION,FILTER_ITEM_TRACK_GROUPを追加
+    [auf2] FILTER_ITEM_TRACKの引数を追加
+    [auf2] FILTER_PROC_VIDEOに幾つかの関数を追加
+    [auf2] サンプルフィルタプラグインを更新
+
+    [2026/5/24]
+    [auf2] FILTER_ITEM_TRACKの引数名を修正
+
+    [2026/5/30]
+    [aux2] 汎用プラグインのUninitializePluginのタイミングを調整
+    [auf2] 画像と音声を両対応した時に設定値が正しく取得出来ないことがあるのを修正
+    [auf2] FILTER_PROC_VIDEOのシェーダー実行の関数名を変更
+    [auf2] FILTER_PROC_VIDEOに幾つかの関数を追加、引数の修飾子を調整
+    [aux2] EDIT_HANDLEに幾つかの関数を追加
+    [cache2] CACHE_HANDLEに幾つかの関数を追加
+
+    [2026/6/7]
+    [aux2] EDIT_SECTIONにオブジェクトの設定項目の情報取得関数を追加
+    [aux2] HOST_APP_TABLEにregister_font_collection()を追加
+
+    [2026/6/14]
+    [auf2] FILTER_ITEM_CHECK_SECTIONの引数を追加
+    [auf2] OBJECT_INFOにframe_s,frame_eを追加
+    [aux2] EDIT_HANDLEにenum_font_name(),enum_palette_name()を追加
+    [aux2] EDIT_SECTIONにget_palette_name(),get_palette_info()を追加
+    [aux2] HOST_APP_TABLEにregister_event_listener()を追加
+    [mod2] push_result_function(),push_result_meta_table()を追加
+
+    [2026/6/20]
+    [auf2] FILTER_PROC_VIDEOにget_font()を追加
+    [aux2] TRACK_INFOにgroup_num,group_indexを追加
+    [aui2][auo2] 汎用プラグインから登録した場合にfunc_config()のdll_hinstが設定されないのを修正
+
+    [2026/6/28]
+    [auf2][aux2] get_font()をFILTER_PROC_VIDEOからEDIT_SECTIONに移動
+    [auf2] シーンの参照時にget_output_image_param(),get_output_audio_param()が正しく取得出来ないのを修正
+    [aux2] フィルタプラグインからfind_object(),get_object_track_value()を利用した時の参照先シーンを修正
+    [aux2] EDIT_SECTIONにget_object_track_group_namesを追加
+    [mod2] push_result_meta_table()の引数を変更,get_param_meta_table()を追加
+    [mod2] スクリプトモジュールのサンプルを更新
+
+    [2026/7/4]
+    [aux2] EDIT_SECTIONの文字列返却の仕組みを調整
+    [aux2] EDIT_SECTIONにget_grid_bpm_list(),set_grid_bpm_list()を追加
+    [aux2] EDIT_SECTIONにEFFECT_HANDLE関連の関数を追加
+    [mod2] get_param_type()を追加
+
+    [2026/7/5]
+    [aux2] get_grid_bpm_list(),set_grid_bpm_list()の引数を変更
